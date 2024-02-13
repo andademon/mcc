@@ -1,0 +1,19 @@
+digraph Identifier {
+    rankdir=LR; // 从左到右布局
+    // 定义节点
+    node [shape=circle, style=solid, color=black, fontname=Arial];
+
+    // 初始状态
+    start [label="start", shape=point, width=.15];
+
+    // 接受状态
+    accept [shape=doublecircle, width=.15];
+
+    // 中间状态
+    L0 [label="0", width=.15];
+
+    // 定义边
+    start -> L0;  // 初始状态指向第一个状态
+    L0 -> accept [label="Alpha,_"];
+    accept -> accept [label="Alpha,Digit,_"];    
+}
