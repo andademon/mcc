@@ -2,194 +2,115 @@
 #include <string.h>
 #include <stdbool.h>
 #include "include/mcc.h"
-#include "include/util.h"
+// #include "include/util.h"
 
-/* Token */
-typedef struct Token
-{
-    int id;
-    TOKEN_TYPE type;
-    char *value;
-    int line;
-    struct Token *next;
-} Token;
+static Token *head;
 
-char *new_str()
-{
-    return (char *)malloc(0);
+void printToken(Token *token) {
+    printf("%d\t%d\t%d\t%s\n", token->id, token->line, token->type, token->value);
 }
 
-char *str_push(char *str, char c)
-{
-    // printf("0X%p\n", str);
-    int new_len = strlen(str) + 1;
-    char *new_str = (char *)realloc(str, new_len);
-    char *rs = strncat(new_str, &c, 1);
-    // printf("0X%p\n", new_str);
-    return rs;
-}
-
-char *str_pop(char *str)
-{
-    int new_len = strlen(str) - 1;
-    *(str + new_len) = '\0';
-    return str;
-}
-
-Token *new_token(int id, int line, TOKEN_TYPE type, char *value)
-{
-    Token *token = (Token *)malloc(sizeof(Token));
-    token->id = id;
-    token->line = line;
-    token->type = type;
-    token->value = value;
-    token->next = NULL;
-    return token;
-}
-
-static Token head, *p = &head;
-
-void Lexer(char *str)
-{
-    int i = 0;
-    int line = 1;
-    int count = 0;
-    while (str[i] != EOF)
+void printTokenList(Token *tokens) {
+    printf("ID\tLINE\tTYPE\tVALUE\n");
+    Token *current_token = tokens;
+    while (current_token)
     {
-        if (str[i] == ' ' || str[i] == '\n' || str[i] == '\t')
+        printToken(current_token);
+        current_token = current_token->next;
+    }
+}
+
+void printTab(int num) {
+    if (num < 0) return;
+    for(int i = 0;i < num;i++) {
+        printf("   ");
+    }
+}
+
+/**
+ * TODO: 深度优先遍历
+ * print type_name
+ * 如果body是list -> for 每个 body list 节点 深度优先遍历
+ * 如果不是list -> 深度优先遍历 body
+ * 
+ * 特殊: blockStmt不是list
+ * 但是body为空，它的body被拆分为decl和stmt list
+ * 注: 已修改
+ * 
+ * expr和stmt的拆分问题
+ * 
+*/
+
+void printNode(Node *node, int tabs) {
+    if (node == NULL) return;
+    printTab(tabs);
+    printf("%s\n", node->type_name);
+    if (node->id != NULL) {
+        printTab(tabs + 1);
+        printf("id: %s\n", node->id->value);
+    }
+    if (node->type == ND_FUNC_DECL) {
+        // printTab(tabs + 1);
+        // printf("id: %s\n", node->id->value);
+        printTab(tabs + 1);
+        printf("params: \n");
+        Node *params = node->params;
+        while (params != NULL)
         {
-            if (str[i] == '\n')
-            {
-                line++;
-            }
-            i++;
-            continue;
+            printNode(params, tabs + 2);
+            params = params->next;
         }
-        /* 标识符/关键字 */
-        if (isAlpha(str[i]) || str[i] == '_')
-        {
-            char *s = new_str();
-            do
-            {
-                str_push(s, str[i]);
-                i++;
-            } while (isAlpha(str[i]) || isDigit(str[i]) || str[i] == '_');
-            Token *token = new_token(count, line, (isKeyWord(s) ? KEYWORD : IDENTIFIER), s);
-            p->next = token;
+        printTab(tabs + 1);
+        printf("body: \n");
+        printNode(node->body, tabs + 2);
+        return;
+    }
+    if (node->type == ND_BINARY_EXPR) {
+        printNode(node->lhs, tabs + 1);
+        printNode(node->rhs, tabs + 1);
+        printTab(tabs + 1);
+        printf("op: %s\n", node->op->value);
+        return;
+    }
+    if (node->is_list) {
+        Node *p = node->body;
+        while(p != NULL) {
+            printNode(p, tabs+1);
             p = p->next;
-            count++;
-            continue;
-        }
-        /* 整型数字常量 */
-        if (isDigit(str[i]))
-        {
-            char *s = new_str();
-            do
-            {
-                str_push(s, str[i]);
-                i++;
-            } while (isDigit(str[i]));
-            Token *token = new_token(count, line, NUMBER, s);
-            p->next = token;
-            p = p->next;
-            count++;
-            continue;
-        }
-        /* 字符串常量 */
-        if (str[i] == '\"')
-        {
-            char *s = new_str();
-            str_push(s, str[i++]);
-            while (str[i] != '\"')
-            {
-                if (str[i] == '\\' && str[i + 1] && str[i + 1] == '\"')
-                {
-                    str_push(s, str[i]);
-                    i++;
-                    str_push(s, str[i]);
-                    i++;
-                    continue;
-                }
-                str_push(s, str[i]);
-                i++;
-            }
-            str_push(s, str[i]);
-            i++;
-            Token *token = new_token(count, line, STRING, s);
-            p->next = token;
-            p = p->next;
-            count++;
-            continue;
-        }
-        /* 注释 */
-        if (str[i] == '/' && str[i + 1] && str[i + 1] == '*')
-        {
-            char *s = new_str();
-            str_push(s, str[i]);
-            i++;
-            str_push(s, str[i]);
-            i++;
-            while (!(str[i] == '*' && str[i + 1] && str[i + 1] == '/'))
-            {
-                str_push(s, str[i]);
-                i++;
-            }
-            str_push(s, str[i]);
-            i++;
-            str_push(s, str[i]);
-            i++;
-            Token *token = new_token(count, line, COMMENT, s);
-            p->next = token;
-            p = p->next;
-            count++;
-            continue;
-        }
-        /* 界符 */
-        char *s = (char *)malloc(0);
-        s = str_push(s, str[i]);
-        if (isBoundarySign(s))
-        {
-            do
-            {
-                i++;
-                s = str_push(s, str[i]);
-            } while (isBoundarySign(s));
-            str_pop(s);
-            Token *token = new_token(count, line, BOUNDARYSIGN, s);
-            p->next = token;
-            p = p->next;
-            count++;
-            continue;
-        }
-        /* 运算符 */
-        if (isOperator(s))
-        {
-            do
-            {
-                i++;
-                s = str_push(s, str[i]);
-            } while (isOperator(s));
-            str_pop(s);
-            Token *token = new_token(count, line, OPERATOR, s);
-            p->next = token;
-            p = p->next;
-            count++;
-            continue;
         }
     }
+    else {
+        printNode(node->body, tabs + 1);
+    }
+}
+void printProgram(Program *prog) {
+    printf("Program\n");
+    // printf("type: \"program\"\n");
+    printf("Body\n");
+    printNode(prog->body, 0);
+    // if (prog->body != NULL) {
+    //     Node *p = prog->body;
+    //     while (p != NULL)
+    //     {
+    //         // printfDecl(p);
+    //         printf("%s\n", p->type_name);
+    //         if (p->is_list == true) {
+    //             // p = p->list;
+    //             p = p->body;
+    //         }
+    //         p = p->next;
+    //     }
+    // }
 }
 
 int main(int argc, char *argv[])
 {
-    char *str = readFile("D:\\git_workplace\\mcc\\demo.c");
+    char *str = readFile("demo.c");
     printf("%s\n", str);
-    Lexer(str);
-    printf("ID\tLINE\tTYPE\tVALUE\n");
-    p = head.next;
-    while (p)
-    {
-        printf("%d\t%d\t%d\t%s\n", p->id, p->line, p->type, p->value);
-        p = p->next;
-    }
+    head = Lexer(str);
+
+    printTokenList(head);
+    Program *prog = parse(head);
+    printProgram(prog);
     return 0;
 }

@@ -1,14 +1,17 @@
-#include <stdio.h>
-#include <string.h>
+int sub(int a, int b) {
+    return a + b;
+}
 
-/* main function */
-int main()
-{
-    int a = 1, b = 2;
-    printf("a+b=%d\n", a + b);
-    printf("\"\"\"111");
-    char *str1 = '#';
-    char *str2 = "#";
-    printf("%d", strcmp(str1, str2));
-    return 0;
+
+int main(void) {
+    int a;
+    int b;
+    a = 1;
+    b = 2;
+    (a + b) * 3 + (a - b);
+    sub(a, b);
+    if (a > 0) {
+        a = a - 1;
+    }
+    return a + b;
 }

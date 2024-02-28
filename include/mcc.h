@@ -1,8 +1,11 @@
 #ifndef __MCC_H__
 #define __MCC_H__
 #include <string.h>
+#include <stdio.h>
+#include <stdbool.h>
 #define TRUE 1
 #define FALSE 0
+#define EOF (-1)
 
 /* (Alpha | _)(Alpha | Digit | _)* */
 /* (Digit)(Digit)* */
@@ -17,129 +20,318 @@ typedef enum
     BOUNDARYSIGN, /* 界符 */
     COMMENT, /* 注释 */
     OTHER, /* 其他 */
-} TOKEN_TYPE;
+    TK_EOF
+} TOKEN_TYPE;\
 
-/* C89关键字 */
-static char* kw[] = {
-    "auto",
-    "break",
-    "case",
-    "char",
-    "const",
-    "continue",
-    "default",
-    "do",
-    "double",
-    "else",
-    "enum",
-    "extern",
-    "float",
-    "for",
-    "goto",
-    "if",
-    "int",
-    "long",
-    "register",
-    "return",
-    "short",
-    "signed",
-    "sizeof",
-    "static",
-    "struct",
-    "switch",
-    "typedef",
-    "unsigned",
-    "union",
-    "void",
-    "volatile"
-    "while",
-};
+typedef enum {
+    TK_ARROW = 256,
+    TK_VOID,
+    TK_INT,
+    TK_STRUCT,
+    TK_IF,
+    TK_ELSE,
+    TK_SWITCH,
+    TK_CASE,
+    TK_FOR,
+    TK_DO,
+    TK_WHILE,
+    TK_BREAK,
+    TK_CONTINUE,
+    TK_RETURN,
+    // TK_EOF
+} EXTEND_TOKEN_TYPE;
 
-/* 运算符 */
-static char* op[] = {
-    "+",
-    "-",
-    "*",
-    "/",
-    "%",
-    "++",
-    "--",
-    "=",
-    ">",
-    "<",
-    ">=",
-    "<=",
-    "==",
-    "!=",
-    "!",
-    "&&",
-    "||",
-    ".",
-    "?",
-    ":",
-    "&",
-    "|",
-    "\\",
-};
+/* ---util.c--- */
+long getFileSize(char *filename);
+char *readFile(char *filename);
 
-/* 界符 */
-static char* bound[] = {
-    "{",
-    "}",
-    "(",
-    ")",
-    "[",
-    "]",
-    ",",
-    ";",
-    "#",
-    "\'",
-    "\"",
-};
+int isKeyWord(char *str);
+int isOperator(char *str);
+int isBoundarySign(char *str);
+int isAlpha(char c);
+int isDigit(char c);
 
-/* 是否是关键字 */
-int isKeyWord(char *str)
+// typedef struct {
+//     /* data */
+//     void **data;
+//     int capacity;
+//     int len;
+// } Vector;
+
+// Vector *new_vec(void);
+// void vec_push(Vector *v, void *elem);
+// void *vec_pop(Vector *v);
+// void *vec_last(Vector *v);
+// bool vec_contains(Vector *v, void *elem);
+
+// typedef struct {
+//     Vector *keys;
+//     Vector *vals;
+// } Map;
+
+// Map *new_map(void);
+// void map_put(Map *map, char *key, void *val);
+// void *map_get(Map *map, char *key);
+// bool map_exists(Map *map, char *key);
+
+/* ---scanner.c--- */
+
+/* Token */
+typedef struct Token
 {
-    int i = 0;
-    while (kw[i])
-    {
-        if (strcmp(str, kw[i]) == 0)
-        {
-            return TRUE;
-        }
-        i++;
-    }
-    return FALSE;
-}
+    int id;
+    TOKEN_TYPE type;
+    char *value;
+    int line;
+    struct Token *next;
+} Token;
 
-/* 是否是运算符 */
-int isOperator(char *str)
-{
-    int i = 0;
-    while (op[i])
-    {
-        if (strcmp(str, op[i]) == 0)
-        {
-            return TRUE;
-        }
-        i++;
-    }
-    return FALSE;
-}
+static Token *new_token(int id, int line, TOKEN_TYPE type, char *value);
+Token *Lexer(char *str);
 
-/* 是否是界符 */
-int isBoundarySign(char *str)
-{
-    int i = 0;
-    while (bound[i])
-    {
-        if (strcmp(str, bound[i]) == 0)
-        {
-            return TRUE;
-        }
-        i++;
-    }
-    return FALSE;
-}
+char *new_str();
+char *str_push(char *str, char c);
+char *str_pop(char *str);
 
+
+/* ---parser.c--- */
+
+// AST node
+typedef enum {
+  ND_NULL_EXPR, // Do nothing
+  ND_ADD,       // +
+  ND_SUB,       // -
+  ND_MUL,       // *
+  ND_DIV,       // /
+  ND_NEG,       // unary -
+  ND_MOD,       // %
+  ND_BITAND,    // &
+  ND_BITOR,     // |
+  ND_BITXOR,    // ^
+  ND_SHL,       // <<
+  ND_SHR,       // >>
+  ND_EQ,        // ==
+  ND_NE,        // !=
+  ND_LT,        // <
+  ND_LE,        // <=
+  ND_ASSIGN,    // =
+  ND_COND,      // ?:
+  ND_COMMA,     // ,
+  ND_MEMBER,    // . (struct member access)
+  ND_ADDR,      // unary &
+  ND_DEREF,     // unary *
+  ND_NOT,       // !
+  ND_BITNOT,    // ~
+  ND_LOGAND,    // &&
+  ND_LOGOR,     // ||
+  ND_RETURN,    // "return"
+  ND_IF,        // "if"
+  ND_FOR,       // "for"
+  ND_WHILE,     // "while"
+  ND_DO,        // "do"
+  ND_SWITCH,    // "switch"
+  ND_CASE,      // "case"
+  ND_BLOCK,     // { ... }
+  ND_GOTO,      // "goto"
+  ND_GOTO_EXPR, // "goto" labels-as-values
+  ND_BREAK,
+  ND_CONTINUE,
+  ND_LABEL,     // Labeled statement
+  ND_LABEL_VAL, // [GNU] Labels-as-values
+  ND_FUNCALL,   // Function call
+  ND_FUNPARAMS,
+  ND_PARAM,
+  ND_STMT_LIST,
+  ND_DECL_LIST,
+
+  ND_IF_STMT,
+  ND_SWITCH_STMT,
+  ND_WHILE_STMT,
+  ND_FOR_STMT,
+  ND_JUMP_STMT,
+
+  ND_EXPR_STMT, // Expression statement
+  ND_TYPE_DECL, // type specifier
+  ND_BINARY_EXPR, // binary expression
+  ND_ASSIGN_EXPR, // assignment expression
+  ND_VAR,       // Variable
+  ND_VAR_DECL, // Variable declaration
+  ND_VLA_PTR,   // VLA designator
+  ND_FUNC_DECL,
+  ND_NUM,       // Integer
+  ND_IDENT,
+  ND_CAST,      // Type cast
+  ND_MEMZERO,   // Zero-clear a stack variable
+  ND_ASM,       // "asm"
+  ND_CAS,       // Atomic compare-and-swap
+  ND_EXCH,      // Atomic exchange
+  ND_PROGRAM
+} NODE_TYPE;
+
+typedef enum {
+    VOID,
+    INT,
+    FLOAT,
+    DOUBLE,
+    SHORT,
+    LONG,
+    STRUCT
+} TYPE;
+
+typedef enum {
+    OP_ADD,       // +
+    OP_SUB,       // -
+    OP_MUL,       // *
+    OP_DIV,       // /
+    OP_NEG,       // unary -
+    OP_MOD,       // %
+    OP_BITAND,    // &
+    OP_BITOR,     // |
+    OP_BITXOR,    // ^
+    OP_SHL,       // <<
+    OP_SHR,       // >>
+    OP_EQ,        // ==
+    OP_NE,        // !=
+    OP_LT,        // <
+    OP_LE,        // <=
+    OP_ASSIGN,    // =
+    OP_COND,      // ?:
+    OP_COMMA,     // ,
+    OP_MEMBER,    // . (struct member access)
+    OP_ADDR,      // unary &
+    OP_DEREF,     // unary *
+    OP_NOT,       // !
+    OP_BITNOT,    // ~
+    OP_LOGAND,    // &&
+    OP_LOGOR,     // ||
+} OPERATOR_TYPE;
+
+typedef struct Node{
+    NODE_TYPE type;
+    char *type_name;
+    char *value;
+
+    // Token *start_token;
+    // int len;
+
+    // type decl
+    TYPE decl_type;
+
+    // func decl
+    struct Node *decl;
+    struct Node *stmt;
+
+    // body
+    struct Node *body;
+
+    // node list
+    struct Node *next;
+    bool is_list;
+
+    // ExprStmt
+    struct Node *expression;
+
+    // BinaryExpr
+    struct Node *lhs;
+    struct Node *rhs;
+    // OPERATOR op;
+    Token *op;
+    // Function
+    struct Node *params;
+    Token *id;
+    // if / for / while test expr
+    struct Node *test;
+    // if / else
+    struct Node *alternative;
+    // for
+    struct Node *init;
+    struct Node *update;
+    // return
+    struct Node *return_value;
+} Node;
+
+// 几种关键的节点类型
+/**
+ * program
+ * variable_declaration
+ * function_declaration
+ * expr
+ * block_stmt
+ * expr_stmt
+*/
+
+typedef struct {
+    NODE_TYPE type;
+    Token *id;
+    Node *params;
+    Node *body;
+} FunctionDeclaration;
+
+typedef struct {
+    NODE_TYPE type;
+    Node *declarations;
+    TYPE kind;
+} VariableDeclaration;
+
+typedef struct {
+    NODE_TYPE type;
+    Node *expr;
+} ExprStmt;
+
+typedef struct {
+    NODE_TYPE type;
+    Node *lhs;
+    Node *rhs;
+} BinaryExpr;
+
+typedef struct {
+    NODE_TYPE type;
+    Node *exprs;
+} SequenceExpr;
+
+typedef struct {
+    NODE_TYPE type;
+    Node *body;
+} Program;
+
+Program *parse(Token *tokens);
+
+static void expect(char *str);
+static void expectType(int type);
+static bool equal(char *str);
+static bool equalType(int type);
+
+static Program *program();
+static Node *declaration_list();
+static Node *declaration();
+static Node *variable_declaration();
+static Node *type_specifier();
+static Node *struct_specifier();
+static Node *struct_declaration_list();
+static Node *function_declaration();
+static Node *parameters();
+static Node *parameter_list();
+static Node *parameter();
+static Node *compound_statement();
+static Node *local_declarations();
+static Node *statement_list();
+static Node *statement();
+static Node *expression_statement();
+static Node *selection_statement();
+static Node *iteration_statement();
+static Node *jump_statement();
+static Node *labeled_statement();
+static Node *expression();
+static Node *assignment_expression();
+static Node *variable();
+static Node *conditional_expression();
+static Node *additive_expression();
+static Node *multiplicative_expression();
+static Node *primary_expression();
+static Node *call_function();
+static Node *argument_list();
+
+static Node *declarations();
+static Node *variable_declarator();
+// static Node *init
 #endif
