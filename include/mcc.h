@@ -300,38 +300,5 @@ static void expect(char *str);
 static void expectType(int type);
 static bool equal(char *str);
 static bool equalType(int type);
-
-static Program *program();
-static Node *declaration_list();
-static Node *declaration();
-static Node *variable_declaration();
-static Node *type_specifier();
-static Node *struct_specifier();
-static Node *struct_declaration_list();
-static Node *function_declaration();
-static Node *parameters();
-static Node *parameter_list();
-static Node *parameter();
-static Node *compound_statement();
-static Node *local_declarations();
-static Node *statement_list();
-static Node *statement();
-static Node *expression_statement();
-static Node *selection_statement();
-static Node *iteration_statement();
-static Node *jump_statement();
-static Node *labeled_statement();
-static Node *expression();
-static Node *assignment_expression();
-static Node *variable();
-static Node *conditional_expression();
-static Node *additive_expression();
-static Node *multiplicative_expression();
-static Node *primary_expression();
-static Node *call_function();
-static Node *argument_list();
-
-static Node *declarations();
-static Node *variable_declarator();
 // static Node *init
 #endif

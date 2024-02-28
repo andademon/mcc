@@ -55,6 +55,49 @@ static Token *current_token;
 // static Token *token_bak;
 static int decl_error_sign = 0;
 
+static void next_token ();
+static Node *new_node(char *type_name, NODE_TYPE type);
+static void expect(char *str);
+static void expectType(int type);
+static bool match(char *str);
+static bool match_type(int type);
+static bool equal(char *str);
+static bool equalType(int type);
+
+
+static Program *program();
+static Node *declaration_list();
+static Node *declaration();
+static Node *variable_declaration();
+static Node *type_specifier();
+static Node *struct_specifier();
+static Node *struct_declaration_list();
+static Node *function_declaration();
+static Node *parameters();
+static Node *parameter_list();
+static Node *parameter();
+static Node *compound_statement();
+static Node *local_declarations();
+static Node *statement_list();
+static Node *statement();
+static Node *expression_statement();
+static Node *selection_statement();
+static Node *iteration_statement();
+static Node *jump_statement();
+static Node *labeled_statement();
+static Node *expression();
+static Node *assignment_expression();
+static Node *variable();
+static Node *conditional_expression();
+static Node *additive_expression();
+static Node *multiplicative_expression();
+static Node *primary_expression();
+static Node *call_function();
+static Node *argument_list();
+
+static Node *declarations();
+static Node *variable_declarator();
+
 static Node *new_node(char *type_name, NODE_TYPE type) {
     Node *node = (Node*)malloc(sizeof(Node));
     node->type_name = type_name;
@@ -340,7 +383,7 @@ static Node *parameter() {
     Node *type_decl = type_specifier();
     Token *id = NULL;
     if (match_type(IDENTIFIER)) {
-        Token *id = &(*current_token);
+        id = &(*current_token);
         next_token();
     }
     Node *param = new_node("FunctionParam", ND_PARAM);
