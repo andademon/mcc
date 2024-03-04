@@ -79,7 +79,19 @@ void printNode(Node *node, int tabs) {
         case ND_EXPR_STMT:
             printNode(node->body, tabs + 1);
             break;
-        case ND_FOR:
+        case ND_FOR_STMT:
+            printTab(tabs + 1);
+            printf("init: \n");
+            printNode(node->init, tabs + 2);
+            printTab(tabs + 1);
+            printf("test: \n");
+            printNode(node->test, tabs + 2);
+            printTab(tabs + 1);
+            printf("update: \n");
+            printNode(node->update, tabs + 2);
+            printTab(tabs + 1);
+            printf("body: \n");
+            printNode(node->body, tabs + 2);
             break;
         case ND_FUNCALL:
             break;

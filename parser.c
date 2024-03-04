@@ -622,10 +622,12 @@ static Node *iteration_statement() {
         Node *test = expression();
         expect(";");
         Node *update = expression();
+        expect(")");
         Node *body = statement();
-        Node *for_stmt = new_node("ForStmt", ND_FOR);
+        Node *for_stmt = new_node("ForStmt", ND_FOR_STMT);
         for_stmt->init = init;
         for_stmt->test = test;
+        for_stmt->update = update;
         for_stmt->body = body;
         return for_stmt;
     }
