@@ -52,11 +52,9 @@
 static Program *prog;
 static Token *tokens;
 static Token *current_token;
-// static Token *token_bak;
-static int decl_error_sign = 0;
 
 static void next_token ();
-static Node *new_node(char *type_name, NODE_TYPE type);
+static Node *new_node(char *type_name, NODE_TYPE node_type);
 static void expect(char *str);
 static void expectType(int type);
 static bool match(char *str);
@@ -65,7 +63,7 @@ static bool equal(char *str);
 static bool equalType(int type);
 
 
-static Program *program();
+static Node *program();
 static Node *declaration_list();
 static Node *declaration();
 static Node *variable_declaration();
@@ -101,7 +99,27 @@ static Node *variable_declarator();
 static Node *new_node(char *type_name, NODE_TYPE type) {
     Node *node = (Node*)malloc(sizeof(Node));
     node->type_name = type_name;
-    node->type = type;
+    node->node_type = type;
+
+    node->body = NULL;
+    node->decl = NULL;
+    node->stmt = NULL;
+    node ->expression = NULL;
+    node ->id = NULL;
+    node->init = NULL;
+    node ->op = NULL;
+    node->lhs = NULL;
+    node->rhs = NULL;
+    node->next = NULL;
+    node->params = NULL;
+    node->return_value = NULL;
+    node->update = NULL;
+    node->value = NULL;
+
+    node->test = NULL;
+    node->alternative = NULL;
+    node->consequent = NULL;
+
     return node;
 }
 
@@ -112,7 +130,10 @@ void next_token () {
 Program *parse(Token *tokens)
 {
     current_token = tokens;
-    return program();
+    Program *prog = (Program*)malloc(sizeof(Program));
+    prog->type = ND_PROGRAM;
+    prog->body = program();
+    return prog;
 }
 
 static void expect(char *str) {
@@ -168,11 +189,8 @@ static bool equalType(int type) {
 }
 
 /* 1.program -> declaration-list */
-static Program *program() {
-    Node *body = declaration_list();
-    Program *program = (Program*)malloc(sizeof(Program));
-    program->type = ND_PROGRAM;
-    program->body = body;
+static Node *program() {
+    Node *program = declaration_list();
     return program;
 }
 
@@ -183,11 +201,11 @@ static Node *declaration_list() {
     Node *head = new_node("Declaration", ND_NULL_EXPR);
     Node *p = head;
     while (!match_type(TK_EOF)) {
-        Node *new_node = declaration();
-        if (new_node == NULL) {
+        Node *node = declaration();
+        if (node == NULL) {
             break;
         }
-        p->next = new_node;
+        p->next = node;
         p = p->next;
     }
     decl_list->body = head->next;
@@ -213,6 +231,7 @@ static Node *declaration() {
 /* return node type: var_decl */
 static Node *variable_declaration() {
     Node *node = NULL;
+    Token *id = NULL;
     /* type_specifier */
     Token *tok_bak = &(*current_token);
     Node *type_specifier_node = type_specifier();
@@ -222,6 +241,7 @@ static Node *variable_declaration() {
     }
     /* ID */
     if (match_type(IDENTIFIER)) {
+        id = &(*current_token);
         next_token();
         if (match("[")) {
             next_token();
@@ -235,8 +255,8 @@ static Node *variable_declaration() {
         /* ; */
         if (match(";")) {
             next_token();
-            // node = (Node*)malloc(sizeof(Node));
-            node = new_node("VarDecl", ND_VAR_DECL);
+            node = new_node("VariableDeclaration", ND_VAR_DECL);
+            node->id = id;
             return node;
         }
     }
@@ -253,25 +273,28 @@ static Node *variable_declaration() {
 /* return node type: single type_decl node */
 static Node *type_specifier() {
     /* expect */
-    /* void | int | float | double | short | long  */
+    /* int | char | void  */
     if (equal("int")) {
+        return new_node("type_decl", ND_TYPE_DECL);
+    }
+    else if (equal("char")) {
         return new_node("type_decl", ND_TYPE_DECL);
     }
     else if (equal("void")) {
         return new_node("type_decl", ND_TYPE_DECL);
     }
-    else if (equal("float")) {
-        return new_node("type_decl", ND_TYPE_DECL);
-    }
-    else if (equal("double")) {
-        return new_node("type_decl", ND_TYPE_DECL);
-    }
-    else if (equal("short")) {
-        return new_node("type_decl", ND_TYPE_DECL);
-    }
-    else if (equal("long")) {
-        return new_node("type_decl", ND_TYPE_DECL);
-    }
+    // else if (equal("float")) {
+    //     return new_node("type_decl", ND_TYPE_DECL);
+    // }
+    // else if (equal("double")) {
+    //     return new_node("type_decl", ND_TYPE_DECL);
+    // }
+    // else if (equal("short")) {
+    //     return new_node("type_decl", ND_TYPE_DECL);
+    // }
+    // else if (equal("long")) {
+    //     return new_node("type_decl", ND_TYPE_DECL);
+    // }
     else if (match("struct")){
         // Node *node = struct_specifier();
         struct_specifier();
@@ -347,7 +370,6 @@ static Node *function_declaration() {
 /* 9.parameters −> parameter-list | void */
 /* return node type: params [] */
 static Node *parameters() {
-    // Node *params = new_node("FunctionParams", ND_FUNPARAMS);
     if (!equal("void")) {
         return parameter_list();
     }
@@ -356,7 +378,7 @@ static Node *parameters() {
 
 /* 10.parameter-list -> parameter { , parameter } */
 static Node *parameter_list() {
-    Node *head = new_node("FunctionParam", ND_PARAM);
+    Node *head = new_node("FunctionParam", ND_FUNC_PARAM);
     Node *p = head;
     Node *param = parameter();
     if (param == NULL) {
@@ -386,7 +408,7 @@ static Node *parameter() {
         id = &(*current_token);
         next_token();
     }
-    Node *param = new_node("FunctionParam", ND_PARAM);
+    Node *param = new_node("FunctionParam", ND_FUNC_PARAM);
     param->id = id;
     if (equal("[")) {
         expect("]");
@@ -415,7 +437,7 @@ static Node *compound_statement() {
 
 /* 13.local-declarations −> { variable-declaration } */
 /**
- * TODO: 将decls串联起来并返回
+ * TODO: 将decls串联起来并返回(已完成)
 */
 static Node *local_declarations() {
     Node *decl_list = new_node("DeclarationList", ND_DECL_LIST);
@@ -440,7 +462,7 @@ static Node *local_declarations() {
 /* 14.statement-list −> { statement } */
 static Node *statement_list() {
     Node *stmt_list = new_node("StatementList", ND_STMT_LIST);
-    Node *p = stmt_list->body;
+    Node *p = NULL;
     for(;;) {
         Node *stmt = statement();
         if (stmt == NULL) {
@@ -510,7 +532,7 @@ static Node *expression_statement() {
 }
 
 /**
- * 17.selection-statement −> if ( expression ) statement [ else statement ]
+ * 17.selection-statement −> if ( expression ) statement {else if (expression) statement} [ else statement ]
  * | switch ( expression ) statement
 */
 static Node *selection_statement() {
@@ -522,15 +544,45 @@ static Node *selection_statement() {
             exit(0);
         }
         expect(")");
-        Node *body = statement();
-        Node *alternative = NULL;
-        if (equal("else")) {
-            alternative = statement();
-        }
-        Node *if_stmt = new_node("IfStmt", ND_IF);
+        Node *consequent = statement();
+        // first step, get if_stmt && if_stmt's test && if_stmt's consequent
+        Node *if_stmt = new_node("IfStmt", ND_IF_STMT);
         if_stmt->test = test;
-        if_stmt->body = body;
-        if_stmt->alternative = alternative;
+        if_stmt->consequent = consequent;
+
+        // second step, link alternative to if_stmt's end
+        Node *p = if_stmt->alternative; // p 始终指向if_stmt->alternative链的末尾
+        while (equal("else")) {
+            if (equal("if")) {
+                expect("(");
+                Node *new_test = expression();
+                expect(")");
+                Node *new_consequent = statement();
+                Node *new_if_stmt = new_node("IfStmt", ND_IF_STMT);
+                new_if_stmt->test = new_test;
+                new_if_stmt->consequent = new_consequent;
+                
+                if(p == NULL) {
+                    if_stmt->alternative = new_if_stmt;
+                    p = if_stmt->alternative;
+                    continue;
+                }
+
+                p->alternative = new_if_stmt;
+                p = p->alternative;
+            }
+            else {
+                Node *alternative = statement();
+                if (p == NULL) {
+                    if_stmt->alternative = alternative;
+                    break;
+                }
+                else {
+                    p->alternative = alternative;
+                    break;
+                }
+            }
+        }
         return if_stmt;
     }
     else if (equal("switch")) {
@@ -687,6 +739,7 @@ static Node *assignment_expression() {
 */
 static Node *variable() {
     if (match_type(IDENTIFIER)) {
+        Token *id = &(*current_token);
         next_token();
         if (equal("[")) {
             expectType(NUMBER);
@@ -695,7 +748,9 @@ static Node *variable() {
         if (equal(".")) {
             expectType(IDENTIFIER);
         }
-        return new_node("Identifier", ND_IDENT);
+        Node *node = new_node("Identifier", ND_IDENT);
+        node->id = id;
+        return node;
     }
     return NULL;
 
@@ -814,8 +869,12 @@ static Node *primary_expression() {
     if (match_type(IDENTIFIER)) {
         return variable();
     }
-    else if (equalType(NUMBER)) {
-        return new_node("Identifier", ND_NUM);
+    else if (match_type(NUMBER)) {
+        Token *tok = &(*current_token);
+        next_token();
+        Node *node = new_node("LiteralNumber", ND_NUM);
+        node->tok = tok;
+        return node;
     }
     else if (equal("(")) {
         Node *expr = expression();

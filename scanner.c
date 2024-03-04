@@ -4,17 +4,23 @@
 
 char *new_str()
 {
-    return (char *)malloc(0);
+    char *str = (char *)malloc(1);
+    if (str != NULL) {
+        memset(str, 0, 1);
+    }
+    return str;
 }
 
 char *str_push(char *str, char c)
 {
-    // printf("0X%p\n", str);
     int new_len = strlen(str) + 1;
-    char *new_str = (char *)realloc(str, new_len);
-    char *rs = strncat(new_str, &c, 1);
-    // printf("0X%p\n", new_str);
-    return rs;
+    char *new_str = (char *)realloc(str, new_len + 1); // last byte store '\0'
+    // char *rs = strncat(new_str, &c, 1);
+    if (new_str != NULL) {
+        new_str[new_len - 1] = c;
+        new_str[new_len] = '\0';
+    }
+    return new_str;
 }
 
 char *str_pop(char *str)
@@ -41,7 +47,7 @@ Token *Lexer(char *str)
     int i = 0;
     int line = 1;
     int count = 0;
-    while (str[i] != EOF)
+    while (str[i] != '\255' && str[i] != EOF)
     {
         if (str[i] == ' ' || str[i] == '\n' || str[i] == '\t')
         {
@@ -132,7 +138,7 @@ Token *Lexer(char *str)
             continue;
         }
         /* 界符 */
-        char *s = (char *)malloc(0);
+        char *s = new_str();
         s = str_push(s, str[i]);
         if (isBoundarySign(s))
         {

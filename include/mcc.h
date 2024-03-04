@@ -139,8 +139,7 @@ typedef enum {
   ND_LABEL,     // Labeled statement
   ND_LABEL_VAL, // [GNU] Labels-as-values
   ND_FUNCALL,   // Function call
-  ND_FUNPARAMS,
-  ND_PARAM,
+  ND_FUNC_PARAM,
   ND_STMT_LIST,
   ND_DECL_LIST,
 
@@ -158,7 +157,7 @@ typedef enum {
   ND_VAR_DECL, // Variable declaration
   ND_VLA_PTR,   // VLA designator
   ND_FUNC_DECL,
-  ND_NUM,       // Integer
+  ND_NUM,       // literal Number
   ND_IDENT,
   ND_CAST,      // Type cast
   ND_MEMZERO,   // Zero-clear a stack variable
@@ -206,11 +205,12 @@ typedef enum {
     OP_LOGOR,     // ||
 } OPERATOR_TYPE;
 
-typedef struct Node{
-    NODE_TYPE type;
+typedef struct Node {
     char *type_name;
+    NODE_TYPE node_type;
     char *value;
 
+    Token *tok;
     // Token *start_token;
     // int len;
 
@@ -242,6 +242,7 @@ typedef struct Node{
     // if / for / while test expr
     struct Node *test;
     // if / else
+    struct Node *consequent;
     struct Node *alternative;
     // for
     struct Node *init;
@@ -258,6 +259,10 @@ typedef struct Node{
  * expr
  * block_stmt
  * expr_stmt
+*/
+
+/**
+ * 常见节点类型可以根据node_type作处理
 */
 
 typedef struct {
