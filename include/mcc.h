@@ -124,7 +124,7 @@ typedef enum {
   ND_BITNOT,    // ~
   ND_LOGAND,    // &&
   ND_LOGOR,     // ||
-  ND_RETURN,    // "return"
+  ND_RETURN_STMT,    // "return"
   ND_IF,        // "if"
   ND_FOR,       // "for"
   ND_WHILE,     // "while"
@@ -132,10 +132,10 @@ typedef enum {
   ND_SWITCH,    // "switch"
   ND_CASE,      // "case"
   ND_BLOCK,     // { ... }
-  ND_GOTO,      // "goto"
+  ND_GOTO_STMT,      // "goto"
   ND_GOTO_EXPR, // "goto" labels-as-values
-  ND_BREAK,
-  ND_CONTINUE,
+  ND_BREAK_STMT,
+  ND_CONTINUE_STMT,
   ND_LABEL,     // Labeled statement
   ND_LABEL_VAL, // [GNU] Labels-as-values
   ND_FUNCALL,   // Function call
@@ -216,6 +216,8 @@ typedef struct Node {
 
     // type decl
     TYPE decl_type;
+    bool is_array;
+    int capacity;
 
     // func decl
     struct Node *decl;
@@ -242,13 +244,16 @@ typedef struct Node {
     // if / for / while test expr
     struct Node *test;
     // if / else
-    struct Node *consequent;
+    struct Node *consequent; // case also has consequent
     struct Node *alternative;
     // for
     struct Node *init;
     struct Node *update;
     // return
     struct Node *return_value;
+
+    // switch
+    struct Node *discriminant;
 } Node;
 
 // 几种关键的节点类型

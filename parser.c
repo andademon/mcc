@@ -511,7 +511,7 @@ static Node *statement() {
     else if (match("while") || match("for")) {
         return iteration_statement();
     }
-    else if (match("return") || match("break") || match("goto")) {
+    else if (match("return") || match("break") || match("continue") || match("goto")) {
         return jump_statement();
     }
     else if (match("case") || match("default")) {
@@ -533,6 +533,9 @@ static Node *statement() {
 /* 16.expression-statement −> [ expression ] ; */
 static Node *expression_statement() {
     Node *expr = expression();
+    if (expr == NULL) {
+        return NULL;
+    }
     expect(";");
     Node *exprStmt = new_node("ExprStmt", ND_EXPR_STMT);
     exprStmt->body = expr;
@@ -542,6 +545,9 @@ static Node *expression_statement() {
 /**
  * 17.selection-statement −> if ( expression ) statement {else if (expression) statement} [ else statement ]
  * | switch ( expression ) statement
+ * 
+ * TODO: 将switch-statement特殊化
+ * switch ( expression ) "{" { label-statement } "}"
 */
 static Node *selection_statement() {
     if (equal("if")) {
@@ -570,6 +576,7 @@ static Node *selection_statement() {
                 new_if_stmt->test = new_test;
                 new_if_stmt->consequent = new_consequent;
                 
+                // 此时为第一个新alternative节点， p 还没初始化，先初始化p
                 if(p == NULL) {
                     if_stmt->alternative = new_if_stmt;
                     p = if_stmt->alternative;
@@ -580,6 +587,7 @@ static Node *selection_statement() {
                 p = p->alternative;
             }
             else {
+                // else if 全部结束，最后一个else节点
                 Node *alternative = statement();
                 if (p == NULL) {
                     if_stmt->alternative = alternative;
@@ -595,12 +603,23 @@ static Node *selection_statement() {
     }
     else if (equal("switch")) {
         expect("(");
-        Node *test = expression();
+        Node *discriminant = expression();
         expect(")");
-        Node *body = statement();
-        Node *switch_stmt = new_node("SwitchStmt", ND_SWITCH);
-        switch_stmt->test = test;
-        switch_stmt->body = body;
+        expect("{");
+        Node *head = new_node("head", ND_NULL_EXPR);
+        Node *p = head;
+        while (!match("}")) {
+            Node *case_stmt = labeled_statement();
+            if (case_stmt != NULL) {
+                p->next = case_stmt;
+                p = p->next;
+            }
+        }
+        expect("}");
+        Node *switch_stmt = new_node("SwitchStmt", ND_SWITCH_STMT);
+        switch_stmt->discriminant = discriminant;
+        switch_stmt->body = head->next;
+        switch_stmt->is_list = true;
         return switch_stmt;
     }
 }
@@ -650,19 +669,23 @@ static Node *jump_statement() {
     if (equal("return")) {
         Node *return_value = expression();
         expect(";");
-        Node *return_stmt = new_node("ReturnStmt", ND_RETURN);
+        Node *return_stmt = new_node("ReturnStmt", ND_RETURN_STMT);
         return_stmt->body = return_value;
         return return_stmt;
     }
     else if (equal("break")) {
         expect(";");
-        return new_node("BreakStmt", ND_BREAK);
+        return new_node("BreakStmt", ND_BREAK_STMT);
     }
+    else if (equal("continue")) {
+        expect(";");
+        return new_node("ContinueStmt", ND_CONTINUE_STMT);
+    } 
     else {
         expect("goto");
         expectType(IDENTIFIER);
         expect(";");
-        return NULL;
+        return new_node("GotoStmt", ND_GOTO_STMT);
     }
 }
 
@@ -670,16 +693,36 @@ static Node *jump_statement() {
  * 20.labeled-statement −> ID : statement
  * | case conditional-expression : statement
  * | default : statement
+ * 
+ * TODO: 这里是不是要改一下，防止平级case识别为嵌套
+ * 
+ * labeled-statement -> ID : statement
+ * | case primary-expression : statement-list
+ * | default : statement-list
 */
 static Node *labeled_statement() {
     if (equal("case")) {
-        conditional_expression();
+        Node *node = new_node("Case", ND_CASE);
+        Node *test = primary_expression();
         expect(":");
-        statement();
+        Node *stmt_list = new_node("StatementList", ND_STMT_LIST);
+        Node *p = stmt_list;
+        while (!match("case") && !match("default") && !match("}")) {
+            Node *stmt = statement();
+            p->next = stmt;
+            p = p->next;
+        }
+        node->test = test;
+        node->consequent = stmt_list->next;
+        return node;
     }
     else if (equal("default")) {
+        Node *node = new_node("Case", ND_CASE);
+        node->test = NULL;
         expect(":");
-        statement();
+        Node *consequent = statement_list();
+        node->consequent = consequent->body;
+        return node;
     }
     else {
         expectType(IDENTIFIER);
@@ -882,7 +925,7 @@ static Node *primary_expression() {
     else if (match_type(NUMBER)) {
         Token *tok = &(*current_token);
         next_token();
-        Node *node = new_node("LiteralNumber", ND_NUM);
+        Node *node = new_node("Literal", ND_NUM);
         node->tok = tok;
         return node;
     }

@@ -67,11 +67,25 @@ void printNode(Node *node, int tabs) {
                 p = p->next;
             }
             break;
-        case ND_BREAK:
+        case ND_BREAK_STMT:
+            break;
+        case ND_CASE:
+            printTab(tabs + 1);
+            printf("test: \n");
+            printNode(node->test, tabs + 2);
+            printTab(tabs + 1);
+            printf("consequent: \n");
+            p = node->consequent;
+            while (p != NULL) {
+                printNode(p, tabs + 2);
+                p = p->next;
+            }
+            break;
+        case ND_CONTINUE_STMT:
             break;
         case ND_DECL_LIST:
             p = node->body;
-            while(p != NULL) {
+            while (p != NULL) {
                 printNode(p, tabs+1);
                 p = p->next;
             }
@@ -133,10 +147,20 @@ void printNode(Node *node, int tabs) {
             printTab(tabs + 1);
             printf("value: %s\n", node->tok->value);
             break;
-        case ND_RETURN:
+        case ND_RETURN_STMT:
             printNode(node->body, tabs + 1);
             break;
-        case ND_SWITCH:
+        case ND_SWITCH_STMT:
+            printTab(tabs + 1);
+            printf("discriminant: \n");
+            printNode(node->discriminant, tabs + 2);
+            printTab(tabs + 1);
+            printf("body: \n");
+            p = node->body;
+            while (p != NULL) {
+                printNode(p, tabs + 2);
+                p = p->next;
+            }
             break;
         case ND_STMT_LIST:
             p = node->body;
