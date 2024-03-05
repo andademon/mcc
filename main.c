@@ -82,11 +82,7 @@ void printNode(Node *node, int tabs) {
         case ND_FOR_STMT:
             printTab(tabs + 1);
             printf("init: \n");
-<<<<<<< Updated upstream
             printNode(node->init, tabs + 2);
-=======
-            printNode(node->init ,tabs + 2);
->>>>>>> Stashed changes
             printTab(tabs + 1);
             printf("test: \n");
             printNode(node->test, tabs + 2);
