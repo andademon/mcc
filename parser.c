@@ -228,10 +228,11 @@ static Node *declaration() {
 }
 
 /* 4.variable-declaration −> type-specifier ID [ “[” NUM “]” ] [ = expression ] ; */
-/* return node type: var_decl */
+/**
+ * variable-declaration -> type-specifier { variable-declarator } { , variable-declarator } ;
+ * variable-declarator -> ID [ "[" NUM "]" ] [ = expression ]
+*/
 static Node *variable_declaration() {
-    Node *node = NULL;
-    Token *id = NULL;
     /* type_specifier */
     Token *tok_bak = &(*current_token);
     Node *type_specifier_node = type_specifier();
@@ -239,7 +240,31 @@ static Node *variable_declaration() {
         current_token = tok_bak;
         return NULL;
     }
-    node = new_node("VariableDeclaration", ND_VAR_DECL);
+    Node *node = new_node("VariableDeclaration", ND_VAR_DECL);
+    node->decl_type = type_specifier_node->decl_type;
+    node->is_list = true;
+    Node *var_declarator = variable_declarator();
+    if (var_declarator == NULL) {
+        return NULL;
+    }
+    node->declarations = var_declarator;
+    Node *p = var_declarator;
+    while (equal(",")) {
+        Node *new_declarator = variable_declarator();
+        p->next = new_declarator;
+        p = p->next;
+    }
+    /* ; */
+    expect(";");
+    return node;
+}
+
+/**
+ * variable-declarator -> ID [ "[" NUM "]" ] [ = expression ]
+*/
+static Node *variable_declarator() {
+    Token *id = NULL;
+    Node *node = new_node("VariableDeclarator", ND_VAR_DECLARATOR);
     /* ID */
     if (match_type(IDENTIFIER)) {
         id = &(*current_token);
@@ -247,6 +272,7 @@ static Node *variable_declaration() {
         next_token();
         if (match("[")) {
             next_token();
+            node->is_array = true;
             if (match_type(NUMBER)) {
                 next_token();
                 if (match("]")) {
@@ -259,34 +285,32 @@ static Node *variable_declaration() {
             Node *init = expression();
             node->init = init;
         }
+        return node;
     }
-    /* ; */
-    expect(";");
-    return node;
-
-    // current_token = tok_bak;
-    // return NULL;
-
-    // if (equal("[")) {
-    //     expectType(NUMBER);
-    //     expect("]");
-    // }
-    // expect(";");
+    else {
+        return NULL;
+    }
 }
 
 /* 5.type-specifier −> int | void | struct-specifier */
 /* return node type: single type_decl node */
 static Node *type_specifier() {
-    /* expect */
+    Token *tok = &(*current_token);
     /* int | char | void  */
     if (equal("int")) {
-        return new_node("type_decl", ND_TYPE_DECL);
+        Node *node = new_node("type_decl", ND_TYPE_DECL);
+        node->decl_type = INT;
+        return node;
     }
     else if (equal("char")) {
-        return new_node("type_decl", ND_TYPE_DECL);
+        Node *node = new_node("type_decl", ND_TYPE_DECL);
+        node->decl_type = CHAR;
+        return node;
     }
     else if (equal("void")) {
-        return new_node("type_decl", ND_TYPE_DECL);
+        Node *node = new_node("type_decl", ND_TYPE_DECL);
+        node->decl_type = VOID;
+        return node;
     }
     // else if (equal("float")) {
     //     return new_node("type_decl", ND_TYPE_DECL);

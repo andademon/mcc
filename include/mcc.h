@@ -142,6 +142,7 @@ typedef enum {
   ND_FUNC_PARAM,
   ND_STMT_LIST,
   ND_DECL_LIST,
+  ND_VAR_DECLARATOR,
 
   ND_IF_STMT,
   ND_SWITCH_STMT,
@@ -169,6 +170,7 @@ typedef enum {
 
 typedef enum {
     VOID,
+    CHAR,
     INT,
     FLOAT,
     DOUBLE,
@@ -229,6 +231,9 @@ typedef struct Node {
     // node list
     struct Node *next;
     bool is_list;
+
+    // VariableDeclaration
+    struct Node *declarations;
 
     // ExprStmt
     struct Node *expression;

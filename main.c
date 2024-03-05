@@ -171,6 +171,17 @@ void printNode(Node *node, int tabs) {
             break;
         case ND_VAR_DECL:
             printTab(tabs + 1);
+            printf("type: %d\n", node->decl_type);
+            printTab(tabs + 1);
+            printf("declarations: \n");
+            p = node->declarations;
+            while (p != NULL) {
+                printNode(p, tabs + 2);
+                p = p->next;
+            }
+            break;
+        case ND_VAR_DECLARATOR:
+            printTab(tabs + 1);
             printf("id: %s\n", node->id->value);
             printTab(tabs + 1);
             printf("init: \n");
