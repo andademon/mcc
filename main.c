@@ -82,7 +82,11 @@ void printNode(Node *node, int tabs) {
         case ND_FOR_STMT:
             printTab(tabs + 1);
             printf("init: \n");
+<<<<<<< Updated upstream
             printNode(node->init, tabs + 2);
+=======
+            printNode(node->init ,tabs + 2);
+>>>>>>> Stashed changes
             printTab(tabs + 1);
             printf("test: \n");
             printNode(node->test, tabs + 2);
@@ -148,7 +152,9 @@ void printNode(Node *node, int tabs) {
         case ND_VAR_DECL:
             printTab(tabs + 1);
             printf("id: %s\n", node->id->value);
-            printNode(node->body, tabs + 1);
+            printTab(tabs + 1);
+            printf("init: \n");
+            printNode(node->init, tabs + 2);
             break;
         case ND_WHILE:
             break;
@@ -205,7 +211,7 @@ int main(int argc, char *argv[])
 {
     // char *str = readFile("demo.c");
     char *str = readFile("D:\\git_workplace\\mcc\\demo.c");
-    // printf("%s\n", str);
+    printf("%s\n", str);
     head = Lexer(str);
 
     printTokenList(head);

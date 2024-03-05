@@ -47,7 +47,7 @@ Token *Lexer(char *str)
     int i = 0;
     int line = 1;
     int count = 0;
-    while (str[i] != '\255' && str[i] != EOF)
+    while (str[i] != '\0' && str[i] != EOF)
     {
         if (str[i] == ' ' || str[i] == '\n' || str[i] == '\t')
         {
@@ -169,6 +169,7 @@ Token *Lexer(char *str)
             count++;
             continue;
         }
+        i++;
     }
     Token *token = new_token(count, line + 1, TK_EOF, NULL);
     p->next = token;

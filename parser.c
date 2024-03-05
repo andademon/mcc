@@ -227,7 +227,7 @@ static Node *declaration() {
     return node;
 }
 
-/* 4.variable-declaration −> type-specifier ID [ “[” NUM “]” ] ; */
+/* 4.variable-declaration −> type-specifier ID [ “[” NUM “]” ] [ = expression ] ; */
 /* return node type: var_decl */
 static Node *variable_declaration() {
     Node *node = NULL;
@@ -239,9 +239,11 @@ static Node *variable_declaration() {
         current_token = tok_bak;
         return NULL;
     }
+    node = new_node("VariableDeclaration", ND_VAR_DECL);
     /* ID */
     if (match_type(IDENTIFIER)) {
         id = &(*current_token);
+        node->id = id;
         next_token();
         if (match("[")) {
             next_token();
@@ -252,16 +254,19 @@ static Node *variable_declaration() {
                 }
             }
         }
-        /* ; */
-        if (match(";")) {
+        if (match("=")) {
             next_token();
-            node = new_node("VariableDeclaration", ND_VAR_DECL);
-            node->id = id;
-            return node;
+            Node *init = expression();
+            node->init = init;
         }
     }
-    current_token = tok_bak;
-    return NULL;
+    /* ; */
+    expect(";");
+    return node;
+
+    // current_token = tok_bak;
+    // return NULL;
+
     // if (equal("[")) {
     //     expectType(NUMBER);
     //     expect("]");
@@ -461,6 +466,9 @@ static Node *local_declarations() {
 
 /* 14.statement-list −> { statement } */
 static Node *statement_list() {
+    if (match("}")) {
+        return NULL;
+    }
     Node *stmt_list = new_node("StatementList", ND_STMT_LIST);
     Node *p = NULL;
     for(;;) {
@@ -617,8 +625,8 @@ static Node *iteration_statement() {
     }
     else if (equal("for")) {
         expect("(");
-        Node *init = expression();
-        expect(";");
+        Node *init = variable_declaration();
+        if (init == NULL) expect(";"); //如果init不是NULL说明;已被读取
         Node *test = expression();
         expect(";");
         Node *update = expression();

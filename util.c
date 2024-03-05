@@ -178,6 +178,6 @@ char *readFile(char *filename)
     char *buffer = (char *) malloc((fileSize + 1) * sizeof(char));
     fread(buffer, sizeof(char), fileSize, fp);
     fclose(fp);
-    *(buffer + fileSize) = EOF;
+    *(buffer + fileSize) = '\0';
     return buffer;
 }
