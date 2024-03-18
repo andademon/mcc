@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include "include/mcc.h"
 // #include "include/util.h"
 
@@ -43,11 +44,12 @@ static Token *new_token(int id, int line, TOKEN_TYPE type, char *value)
 
 Token *Lexer(char *str)
 {
+    int len = strlen(str);
     static Token head, *p = &head;
     int i = 0;
     int line = 1;
     int count = 0;
-    while (str[i] != '\0' && str[i] != EOF)
+    while (str[i] != '\0' && i <= len)
     {
         if (str[i] == ' ' || str[i] == '\n' || str[i] == '\t')
         {
@@ -169,7 +171,6 @@ Token *Lexer(char *str)
             count++;
             continue;
         }
-        i++;
     }
     Token *token = new_token(count, line + 1, TK_EOF, NULL);
     p->next = token;

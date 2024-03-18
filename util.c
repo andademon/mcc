@@ -1,6 +1,7 @@
 #include "include/mcc.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #define KEYWORD_LEN 31
 #define OPERATOR_LEN 23
 #define BOUNDARYSIGN_LEN 11
@@ -180,4 +181,11 @@ char *readFile(char *filename)
     fclose(fp);
     *(buffer + fileSize) = '\0';
     return buffer;
+}
+
+File *new_file(char *filename, char *path) {
+    File *file = (File *)malloc(sizeof(File));
+    file->filename = filename;
+    file->path = path;
+    return file;
 }

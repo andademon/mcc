@@ -240,10 +240,11 @@ void printProgram(Program *prog) {
 
 int main(int argc, char *argv[])
 {
-    // char *str = readFile("demo.c");
-    char *str = readFile("D:\\git_workplace\\mcc\\demo.c");
-    printf("%s\n", str);
-    head = Lexer(str);
+    File *file = new_file("demo.c", "");
+    char *str = readFile("demo.c");
+    file->content = str;
+    printf("%s\n", file->content);
+    head = Lexer(file->content);
 
     printTokenList(head);
     Program *prog = parse(head);

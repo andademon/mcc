@@ -6,12 +6,13 @@
  * 1.program -> declaration-list
  * 2.declaration-list −> declaration { declaration }
  * 3.declaration -> variable-declaration | function-declaration
- * 4.variable-declaration −> type-specifier ID [ “[” NUM “]” ] ;
+ * 4.variable-declaration -> type-specifier variable-declarator { , variable-declarator } ;
+ * n.variable-declarator -> ID [ "[" NUM "]" ] [ = expression ]
  * 5.type-specifier −> int | void | struct-specifier
  * 6.struct-specifier −> struct [ID] [ { struct-declaration-list} ]
  * 7.struct-declaration-list ->
  * 8.function-declaration -> type-specifier ID ( parameters ) compound-statement
- * 9.parameters −> parameter-list | void
+ * 9.parameters −> parameter-list | void | ε
  * 10.parameter-list -> parameter { , parameter }
  * 11.parameter −> type-specifier ID [ “[” “]” ]
  * 12.compound-statement −> { [local-declarations] [statement-list] }
@@ -53,20 +54,19 @@ static Program *prog;
 static Token *tokens;
 static Token *current_token;
 
-static void next_token ();
 static Node *new_node(char *type_name, NODE_TYPE node_type);
+static void next_token();
 static void expect(char *str);
-static void expectType(int type);
+static void expect_type(int type);
 static bool match(char *str);
 static bool match_type(int type);
-static bool equal(char *str);
-static bool equalType(int type);
 
 
 static Node *program();
 static Node *declaration_list();
 static Node *declaration();
 static Node *variable_declaration();
+static Node *variable_declarator();
 static Node *type_specifier();
 static Node *struct_specifier();
 static Node *struct_declaration_list();
@@ -92,9 +92,6 @@ static Node *multiplicative_expression();
 static Node *primary_expression();
 static Node *call_function();
 static Node *argument_list();
-
-static Node *declarations();
-static Node *variable_declarator();
 
 static Node *new_node(char *type_name, NODE_TYPE type) {
     Node *node = (Node*)malloc(sizeof(Node));
@@ -162,7 +159,7 @@ static bool match_type(int type) {
     return false;
 }
 
-static void expectType(int type) {
+static void expect_type(int type) {
     if (current_token->type == type) {
         printf("parse success: %s\n", current_token->value);
         current_token = current_token->next;
@@ -172,22 +169,6 @@ static void expectType(int type) {
     exit(0);
 }
 
-static bool equal(char *str) {
-    if (strcmp(current_token->value, str) != 0) {
-        return false;
-    }
-    current_token = current_token->next;
-    return true;
-}
-
-static bool equalType(int type) {
-    if (current_token->type != type) {
-        return false;
-    }
-    current_token = current_token->next;
-    return true;
-}
-
 /* 1.program -> declaration-list */
 static Node *program() {
     Node *program = declaration_list();
@@ -195,7 +176,6 @@ static Node *program() {
 }
 
 /* 2.declaration-list −> declaration { declaration } */
-/* return node type: var_decl | function_decl list as program's body*/
 static Node *declaration_list() {
     Node *decl_list = new_node("DeclarationList", ND_DECL_LIST);
     Node *head = new_node("Declaration", ND_NULL_EXPR);
@@ -214,7 +194,6 @@ static Node *declaration_list() {
 }
 
 /* 3.declaration -> variable-declaration | function-declaration */
-/* return node type: single var_decl | function_decl node */
 static Node *declaration() {
     Node *node = NULL;
     Token *token_bak = &(*current_token);
@@ -227,9 +206,8 @@ static Node *declaration() {
     return node;
 }
 
-/* 4.variable-declaration −> type-specifier ID [ “[” NUM “]” ] [ = expression ] ; */
 /**
- * variable-declaration -> type-specifier { variable-declarator } { , variable-declarator } ;
+ * 4.variable-declaration -> type-specifier variable-declarator { , variable-declarator } ;
  * variable-declarator -> ID [ "[" NUM "]" ] [ = expression ]
 */
 static Node *variable_declaration() {
@@ -249,7 +227,8 @@ static Node *variable_declaration() {
     }
     node->declarations = var_declarator;
     Node *p = var_declarator;
-    while (equal(",")) {
+    while (match(",")) {
+        next_token();
         Node *new_declarator = variable_declarator();
         p->next = new_declarator;
         p = p->next;
@@ -293,35 +272,41 @@ static Node *variable_declarator() {
 }
 
 /* 5.type-specifier −> int | void | struct-specifier */
-/* return node type: single type_decl node */
 static Node *type_specifier() {
     Token *tok = &(*current_token);
     /* int | char | void  */
-    if (equal("int")) {
+    if (match("int")) {
+        next_token();
         Node *node = new_node("type_decl", ND_TYPE_DECL);
         node->decl_type = INT;
         return node;
     }
-    else if (equal("char")) {
+    else if (match("char")) {
+        next_token();
         Node *node = new_node("type_decl", ND_TYPE_DECL);
         node->decl_type = CHAR;
         return node;
     }
-    else if (equal("void")) {
+    else if (match("void")) {
+        next_token();
         Node *node = new_node("type_decl", ND_TYPE_DECL);
         node->decl_type = VOID;
         return node;
     }
-    // else if (equal("float")) {
+    // else if (match("float")) {
+    //     next_token();
     //     return new_node("type_decl", ND_TYPE_DECL);
     // }
-    // else if (equal("double")) {
+    // else if (match("double")) {
+    //     next_token();
     //     return new_node("type_decl", ND_TYPE_DECL);
     // }
-    // else if (equal("short")) {
+    // else if (match("short")) {
+    //     next_token();
     //     return new_node("type_decl", ND_TYPE_DECL);
     // }
-    // else if (equal("long")) {
+    // else if (match("long")) {
+    //     next_token();
     //     return new_node("type_decl", ND_TYPE_DECL);
     // }
     else if (match("struct")){
@@ -336,11 +321,11 @@ static Node *type_specifier() {
 }
 
 /* 6.struct-specifier −> struct [ID] [ { struct-declaration-list } ] */
-/* return node type: single struct node */
 static Node *struct_specifier() {
     expect("struct");
-    expectType(IDENTIFIER);
-    if (equal("{")) {
+    expect_type(IDENTIFIER);
+    if (match("{")) {
+        next_token();
         struct_declaration_list();
         expect("}");
     }
@@ -354,7 +339,6 @@ static Node *struct_declaration_list() {
 }
 
 /* 8.function-declaration -> type-specifier ID ( parameters ) compound-statement */
-/* return node type: single function_decl node */
 static Node *function_declaration() {
     Node *node = NULL;
     Node *type_decl = NULL;
@@ -388,21 +372,18 @@ static Node *function_declaration() {
     func->params = params;
     func->body = body;
     return func;
-
-    // expectType(IDENTIFIER);
-    // expect("(");
-    // parameters();
-    // expect(")");
-    // compound_statement();
 }
 
 /* 9.parameters −> parameter-list | void */
-/* return node type: params [] */
 static Node *parameters() {
-    if (!equal("void")) {
-        return parameter_list();
+    if (match(")")) {
+        return NULL;
     }
-    return NULL;
+    if (match("void")) {
+        next_token();
+        return NULL;
+    }
+    return parameter_list();
 }
 
 /* 10.parameter-list -> parameter { , parameter } */
@@ -417,7 +398,8 @@ static Node *parameter_list() {
         head->next = param;
         p = head->next;
     }
-    while (equal(",")) {
+    while (match(",")) {
+        next_token();
         Node *new_param = parameter();
         if (new_param == NULL) {
             printf("Error: missing function param;");
@@ -439,7 +421,8 @@ static Node *parameter() {
     }
     Node *param = new_node("FunctionParam", ND_FUNC_PARAM);
     param->id = id;
-    if (equal("[")) {
+    if (match("[")) {
+        next_token();
         expect("]");
     }
     return param;
@@ -574,7 +557,8 @@ static Node *expression_statement() {
  * switch ( expression ) "{" { label-statement } "}"
 */
 static Node *selection_statement() {
-    if (equal("if")) {
+    if (match("if")) {
+        next_token();
         expect("(");
         Node *test = expression();
         if (test == NULL) {
@@ -590,8 +574,10 @@ static Node *selection_statement() {
 
         // second step, link alternative to if_stmt's end
         Node *p = if_stmt->alternative; // p 始终指向if_stmt->alternative链的末尾
-        while (equal("else")) {
-            if (equal("if")) {
+        while (match("else")) {
+            next_token();
+            if (match("if")) {
+                next_token();
                 expect("(");
                 Node *new_test = expression();
                 expect(")");
@@ -625,7 +611,8 @@ static Node *selection_statement() {
         }
         return if_stmt;
     }
-    else if (equal("switch")) {
+    else if (match("switch")) {
+        next_token();
         expect("(");
         Node *discriminant = expression();
         expect(")");
@@ -653,7 +640,8 @@ static Node *selection_statement() {
  * | for ( [expression ] ; [expression ] ; [expression] ) statement
 */
 static Node *iteration_statement() {
-    if (equal("while")) {
+    if (match("while")) {
+        next_token();
         expect("(");
         Node *test = expression();
         if (test == NULL) {
@@ -666,7 +654,8 @@ static Node *iteration_statement() {
         while_stmt->body = body;
         return while_stmt;
     }
-    else if (equal("for")) {
+    else if (match("for")) {
+        next_token();
         expect("(");
         Node *init = variable_declaration();
         if (init == NULL) expect(";"); //如果init不是NULL说明;已被读取
@@ -690,24 +679,27 @@ static Node *iteration_statement() {
  * | goto ID ;
 */
 static Node *jump_statement() {
-    if (equal("return")) {
+    if (match("return")) {
+        next_token();
         Node *return_value = expression();
         expect(";");
         Node *return_stmt = new_node("ReturnStmt", ND_RETURN_STMT);
         return_stmt->body = return_value;
         return return_stmt;
     }
-    else if (equal("break")) {
+    else if (match("break")) {
+        next_token();
         expect(";");
         return new_node("BreakStmt", ND_BREAK_STMT);
     }
-    else if (equal("continue")) {
+    else if (match("continue")) {
+        next_token();
         expect(";");
         return new_node("ContinueStmt", ND_CONTINUE_STMT);
     } 
     else {
         expect("goto");
-        expectType(IDENTIFIER);
+        expect_type(IDENTIFIER);
         expect(";");
         return new_node("GotoStmt", ND_GOTO_STMT);
     }
@@ -725,7 +717,8 @@ static Node *jump_statement() {
  * | default : statement-list
 */
 static Node *labeled_statement() {
-    if (equal("case")) {
+    if (match("case")) {
+        next_token();
         Node *node = new_node("Case", ND_CASE);
         Node *test = primary_expression();
         expect(":");
@@ -740,7 +733,8 @@ static Node *labeled_statement() {
         node->consequent = stmt_list->next;
         return node;
     }
-    else if (equal("default")) {
+    else if (match("default")) {
+        next_token();
         Node *node = new_node("Case", ND_CASE);
         node->test = NULL;
         expect(":");
@@ -749,7 +743,7 @@ static Node *labeled_statement() {
         return node;
     }
     else {
-        expectType(IDENTIFIER);
+        expect_type(IDENTIFIER);
         expect(":");
         statement();
     }
@@ -818,28 +812,20 @@ static Node *variable() {
     if (match_type(IDENTIFIER)) {
         Token *id = &(*current_token);
         next_token();
-        if (equal("[")) {
-            expectType(NUMBER);
+        if (match("[")) {
+            next_token();
+            expect_type(NUMBER);
             expect("]");
         }
-        if (equal(".")) {
-            expectType(IDENTIFIER);
+        if (match(".")) {
+            next_token();
+            expect_type(IDENTIFIER);
         }
         Node *node = new_node("Identifier", ND_IDENT);
         node->id = id;
         return node;
     }
     return NULL;
-
-    // expectType(IDENTIFIER);
-    // if (equal("[")) {
-    //     expectType(NUMBER);
-    //     expect("]");
-    // }
-    // if (equal(".")) {
-    //     expectType(IDENTIFIER);
-    // }
-    // return new_node("Identifier", ND_IDENT);
 }
 
 /**
@@ -953,7 +939,8 @@ static Node *primary_expression() {
         node->tok = tok;
         return node;
     }
-    else if (equal("(")) {
+    else if (match("(")) {
+        next_token();
         Node *expr = expression();
         expect(")");
         return expr;
@@ -982,7 +969,7 @@ static Node *call_function() {
     }
     return NULL;
     Node *node = new_node("CallExpr", ND_FUNCALL);
-    expectType(IDENTIFIER);
+    expect_type(IDENTIFIER);
     expect("(");
     Node *params = argument_list();
     node->body = params;
@@ -999,7 +986,8 @@ static Node *argument_list() {
         return NULL;
     }
     Node *p = expr;
-    while (equal(",")) {
+    while (match(",")) {
+        next_token();
         Node *next_node = expression();
         if (next_node == NULL) {
             break;

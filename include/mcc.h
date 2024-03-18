@@ -7,6 +7,14 @@
 #define FALSE 0
 #define EOF (-1)
 
+typedef struct File {
+    char *filename;
+    char *path;
+    char *content;
+} File;
+
+File *new_file(char *filename, char *path);
+
 /* (Alpha | _)(Alpha | Digit | _)* */
 /* (Digit)(Digit)* */
 /* "\"(* except for \")\"" */
@@ -14,32 +22,14 @@ typedef enum
 {
     KEYWORD, /* 关键字 */
     IDENTIFIER, /* 标识符 */
-    NUMBER, /* 数字 */
-    STRING, /* 字符串 */
+    NUMBER, /* 数字常量 */
+    STRING, /* 字符串常量 */
     OPERATOR, /* 运算符 */
     BOUNDARYSIGN, /* 界符 */
     COMMENT, /* 注释 */
     OTHER, /* 其他 */
     TK_EOF
 } TOKEN_TYPE;\
-
-typedef enum {
-    TK_ARROW = 256,
-    TK_VOID,
-    TK_INT,
-    TK_STRUCT,
-    TK_IF,
-    TK_ELSE,
-    TK_SWITCH,
-    TK_CASE,
-    TK_FOR,
-    TK_DO,
-    TK_WHILE,
-    TK_BREAK,
-    TK_CONTINUE,
-    TK_RETURN,
-    // TK_EOF
-} EXTEND_TOKEN_TYPE;
 
 /* ---util.c--- */
 long getFileSize(char *filename);
@@ -50,29 +40,6 @@ int isOperator(char *str);
 int isBoundarySign(char *str);
 int isAlpha(char c);
 int isDigit(char c);
-
-// typedef struct {
-//     /* data */
-//     void **data;
-//     int capacity;
-//     int len;
-// } Vector;
-
-// Vector *new_vec(void);
-// void vec_push(Vector *v, void *elem);
-// void *vec_pop(Vector *v);
-// void *vec_last(Vector *v);
-// bool vec_contains(Vector *v, void *elem);
-
-// typedef struct {
-//     Vector *keys;
-//     Vector *vals;
-// } Map;
-
-// Map *new_map(void);
-// void map_put(Map *map, char *key, void *val);
-// void *map_get(Map *map, char *key);
-// bool map_exists(Map *map, char *key);
 
 /* ---scanner.c--- */
 
@@ -311,9 +278,10 @@ typedef struct {
 
 Program *parse(Token *tokens);
 
-static void expect(char *str);
-static void expectType(int type);
-static bool equal(char *str);
-static bool equalType(int type);
-// static Node *init
+// sema.c
+
+// codegen.c
+
+void codegen(Program *prog);
+
 #endif
