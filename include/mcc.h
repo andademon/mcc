@@ -180,9 +180,6 @@ typedef struct Node {
     char *value;
 
     Token *tok;
-    // Token *start_token;
-    // int len;
-
     // type decl
     TYPE decl_type;
     bool is_array;
@@ -282,6 +279,23 @@ Program *parse(Token *tokens);
 
 // codegen.c
 
-void codegen(Program *prog);
+// void codegen(Program *prog);
+void codegen(Node *node);
+
+/* 三地址代码形式的IR */
+typedef struct {
+    int op;
+    int r0;
+    int r1;
+    int r2;
+} IR;
+
+/* 基本块 */
+typedef struct {
+    int label;
+    IR *ir;
+    int ir_num;
+} BB; /*basic block*/
+
 
 #endif
