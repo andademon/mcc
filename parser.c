@@ -1,5 +1,4 @@
 #include "include/mcc.h"
-#include <stdlib.h>
 
 /**
  * grammar in EBNF
@@ -54,7 +53,6 @@ static Program *prog;
 static Token *tokens;
 static Token *current_token;
 
-static Node *new_node(char *type_name, NODE_TYPE node_type);
 static void next_token();
 static void expect(char *str);
 static void expect_type(int type);
@@ -71,12 +69,12 @@ static Node *type_specifier();
 static Node *struct_specifier();
 static Node *struct_declaration_list();
 static Node *function_declaration();
-static Node *parameters();
-static Node *parameter_list();
+static Vector *parameters();
+static Vector *parameter_list();
 static Node *parameter();
 static Node *compound_statement();
-static Node *local_declarations();
-static Node *statement_list();
+static Vector *local_declarations();
+static Vector *statement_list();
 static Node *statement();
 static Node *expression_statement();
 static Node *selection_statement();
@@ -91,35 +89,8 @@ static Node *additive_expression();
 static Node *multiplicative_expression();
 static Node *primary_expression();
 static Node *call_function();
-static Node *argument_list();
+static Vector *argument_list();
 static Node *constant();
-
-static Node *new_node(char *type_name, NODE_TYPE type) {
-    Node *node = (Node*)malloc(sizeof(Node));
-    node->type_name = type_name;
-    node->node_type = type;
-
-    node->body = NULL;
-    node->decl = NULL;
-    node->stmt = NULL;
-    node ->expression = NULL;
-    node ->id = NULL;
-    node->init = NULL;
-    node ->op = NULL;
-    node->lhs = NULL;
-    node->rhs = NULL;
-    node->next = NULL;
-    node->params = NULL;
-    node->return_value = NULL;
-    node->update = NULL;
-    node->value = NULL;
-
-    node->test = NULL;
-    node->alternative = NULL;
-    node->consequent = NULL;
-
-    return node;
-}
 
 void next_token () {
     current_token = current_token->next;
@@ -128,9 +99,18 @@ void next_token () {
 Program *parse(Token *tokens)
 {
     current_token = tokens;
-    Program *prog = (Program*)malloc(sizeof(Program));
-    prog->type = ND_PROGRAM;
-    prog->body = program();
+    Program *prog = new_prog();
+    Node *node = program();
+    if (node && node->decls) {
+        for(int i = 0;i < node->decls->len;i++) {
+            Node *temp = node->decls->data[i];
+            if(temp->node_type == ND_VAR_DECL) {
+                vec_push(prog->gvars, temp);
+            } else if (temp->node_type == ND_FUNC_DECL) {
+                vec_push(prog->funcs, temp);
+            }
+        }
+    }
     return prog;
 }
 
@@ -179,18 +159,13 @@ static Node *program() {
 /* 2.declaration-list −> declaration { declaration } */
 static Node *declaration_list() {
     Node *decl_list = new_node("DeclarationList", ND_DECL_LIST);
-    Node *head = new_node("Declaration", ND_NULL_EXPR);
-    Node *p = head;
     while (!match_type(TK_EOF)) {
         Node *node = declaration();
         if (node == NULL) {
             break;
         }
-        p->next = node;
-        p = p->next;
+        vec_push(decl_list->decls, node);
     }
-    decl_list->body = head->next;
-    decl_list->is_list = true;
     return decl_list;
 }
 
@@ -221,7 +196,6 @@ static Node *variable_declaration() {
     }
     Node *node = new_node("VariableDeclaration", ND_VAR_DECL);
     node->decl_type = type_specifier_node->decl_type;
-    node->is_list = true;
     Node *var_declarator = variable_declarator();
     if (var_declarator == NULL) {
         return NULL;
@@ -229,16 +203,15 @@ static Node *variable_declaration() {
 
     var_declarator->decl_type = node->decl_type;
 
-    node->declarations = var_declarator;
-    Node *p = var_declarator;
+    vec_push(node->declarators, var_declarator);
+
     while (match(",")) {
         next_token();
         Node *new_declarator = variable_declarator();
 
         new_declarator->decl_type = node->decl_type;
 
-        p->next = new_declarator;
-        p = p->next;
+        vec_push(node->declarators, new_declarator);
     }
     /* ; */
     expect(";");
@@ -300,22 +273,6 @@ static Node *type_specifier() {
         node->decl_type = VOID;
         return node;
     }
-    // else if (match("float")) {
-    //     next_token();
-    //     return new_node("type_decl", ND_TYPE_DECL);
-    // }
-    // else if (match("double")) {
-    //     next_token();
-    //     return new_node("type_decl", ND_TYPE_DECL);
-    // }
-    // else if (match("short")) {
-    //     next_token();
-    //     return new_node("type_decl", ND_TYPE_DECL);
-    // }
-    // else if (match("long")) {
-    //     next_token();
-    //     return new_node("type_decl", ND_TYPE_DECL);
-    // }
     else if (match("struct")){
         // Node *node = struct_specifier();
         struct_specifier();
@@ -350,7 +307,7 @@ static Node *function_declaration() {
     Node *node = NULL;
     Node *type_decl = NULL;
     Token *id = NULL;
-    Node *params = NULL;
+    Vector *params = NULL;
     Node *body = NULL;
 
     type_decl = type_specifier();
@@ -363,9 +320,6 @@ static Node *function_declaration() {
         if (match("(")) {
             next_token();
             params = parameters();
-            if (params != NULL) {
-                params->is_list = true;
-            }
             if (match(")")) {
                 next_token();
             }
@@ -376,13 +330,14 @@ static Node *function_declaration() {
     body = compound_statement();
     Node *func = new_node("FunctionDeclaration", ND_FUNC_DECL);
     func->id = id;
-    func->params = params;
+    if (params != NULL)
+        func->params = params;
     func->body = body;
     return func;
 }
 
-/* 9.parameters −> parameter-list | void */
-static Node *parameters() {
+/* 9.parameters −> parameter-list | void | ε */
+static Vector *parameters() {
     if (match(")")) {
         return NULL;
     }
@@ -394,16 +349,14 @@ static Node *parameters() {
 }
 
 /* 10.parameter-list -> parameter { , parameter } */
-static Node *parameter_list() {
-    Node *head = new_node("FunctionParam", ND_FUNC_PARAM);
-    Node *p = head;
+static Vector *parameter_list() {
+    Vector *params = new_vec();
     Node *param = parameter();
     if (param == NULL) {
         return NULL;
     }
     else {
-        head->next = param;
-        p = head->next;
+        vec_push(params, param);
     }
     while (match(",")) {
         next_token();
@@ -412,10 +365,9 @@ static Node *parameter_list() {
             printf("Error: missing function param;");
             exit(0);
         }
-        p->next = new_param;
-        p = p->next;
+        vec_push(params, new_param);
     }
-    return head->next;
+    return params;
 }
 
 /* 11.parameter −> type-specifier ID [ “[” “]” ] */
@@ -438,19 +390,12 @@ static Node *parameter() {
 /* 12.compound-statement −> { [local-declarations] [statement-list] } */
 static Node *compound_statement() {
     Node *block_stmt = new_node("BlockStmt", ND_BLOCK);
-    block_stmt->is_list = true;
     expect("{");
-    Node *decl = local_declarations();
-    Node *stmt = statement_list();
+    Vector *decls = local_declarations();
+    Vector *stmts = statement_list();
     expect("}");
-    if (decl->body == NULL) {
-        block_stmt->body = stmt;
-        return block_stmt;
-    }
-    else {
-        decl->next = stmt;
-        block_stmt->body = decl;
-    }
+    block_stmt->decls = decls;
+    block_stmt->stmts = stmts;
     return block_stmt;
 }
 
@@ -458,54 +403,36 @@ static Node *compound_statement() {
 /**
  * TODO: 将decls串联起来并返回(已完成)
 */
-static Node *local_declarations() {
-    Node *decl_list = new_node("DeclarationList", ND_DECL_LIST);
-    Node *p = decl_list->body;
+static Vector *local_declarations() {
+    Vector *decls = new_vec();
     for(;;) {
         Node *var_decl = variable_declaration();
         if (var_decl == NULL) {
             break;
         }
-        if (decl_list->body == NULL) {
-            decl_list->body = var_decl;
-            p = decl_list->body;
-            continue;
-        }
-        p->next = var_decl;
-        p = p->next;
+        vec_push(decls, var_decl);
     }
-    decl_list->is_list = true;
-    return decl_list;
+    return decls;
 }
 
 /* 14.statement-list −> { statement } */
-static Node *statement_list() {
+static Vector *statement_list() {
+    Vector *stmts = new_vec();
     if (match("}")) {
         return NULL;
     }
-    Node *stmt_list = new_node("StatementList", ND_STMT_LIST);
     Node *p = NULL;
     for(;;) {
         Node *stmt = statement();
         if (stmt == NULL) {
             break;
         }
-        if (stmt_list->body == NULL) {
-            stmt_list->body = stmt;
-            p = stmt_list->body;
-            if (match("}")) {
-                break;
-            }
-            continue;
-        }
-        p->next = stmt;
-        p = p->next;
+        vec_push(stmts, stmt);
         if (match("}")) {
             break;
         }
     }
-    stmt_list->is_list = true;
-    return stmt_list;
+    return stmts;
 }
 
 /**
@@ -624,20 +551,15 @@ static Node *selection_statement() {
         Node *discriminant = expression();
         expect(")");
         expect("{");
-        Node *head = new_node("head", ND_NULL_EXPR);
-        Node *p = head;
+        Node *switch_stmt = new_node("SwitchStmt", ND_SWITCH_STMT);
         while (!match("}")) {
             Node *case_stmt = labeled_statement();
             if (case_stmt != NULL) {
-                p->next = case_stmt;
-                p = p->next;
+                vec_push(switch_stmt->cases, case_stmt);
             }
         }
         expect("}");
-        Node *switch_stmt = new_node("SwitchStmt", ND_SWITCH_STMT);
         switch_stmt->discriminant = discriminant;
-        switch_stmt->body = head->next;
-        switch_stmt->is_list = true;
         return switch_stmt;
     }
 }
@@ -745,8 +667,9 @@ static Node *labeled_statement() {
         Node *node = new_node("Case", ND_CASE);
         node->test = NULL;
         expect(":");
-        Node *consequent = statement_list();
-        node->consequent = consequent->body;
+        Node *consequent = new_node("StatementList", ND_STMT_LIST);
+        consequent->stmts = statement_list();
+        node->consequent = consequent;
         return node;
     }
     else {
@@ -984,44 +907,47 @@ static Node *call_function() {
         next_token();
         if (match("(")) {
             next_token();
-            Node *params = argument_list();
+            Vector *args = argument_list();
             if (match(")")) {
                 next_token();
                 Node *funcall = new_node("CallExpr", ND_FUNCALL);
-                funcall->params = params;
+                funcall->args = args;
                 return funcall;
             }
         }
     }
     return NULL;
-    Node *node = new_node("CallExpr", ND_FUNCALL);
-    expect_type(IDENTIFIER);
-    expect("(");
-    Node *params = argument_list();
-    node->body = params;
-    expect(")");
-    return node;
+    // Node *node = new_node("CallExpr", ND_FUNCALL);
+    // expect_type(IDENTIFIER);
+    // expect("(");
+    // Vector *args = argument_list();
+    // node->args = args;
+    // expect(")");
+    // return node;
 }
 
 /**
  * 32.argument-list −> expression { , expression }
 */
-static Node *argument_list() {
+static Vector *argument_list() {
+    Vector *args = new_vec();
     Node *expr = expression();
     if (expr == NULL) {
         return NULL;
     }
-    Node *p = expr;
+    vec_push(args, expr);
+    // Node *p = expr;
     while (match(",")) {
         next_token();
-        Node *next_node = expression();
-        if (next_node == NULL) {
+        Node *new_node = expression();
+        if (new_node == NULL) {
             break;
         }
-        p->next = next_node;
-        p = p->next;
+        vec_push(args, new_node);
+        // p->next = next_node;
+        // p = p->next;
     }
-    return expr;
+    return args;
 }
 
 typedef struct {

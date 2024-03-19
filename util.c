@@ -1,7 +1,4 @@
 #include "include/mcc.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #define KEYWORD_LEN 31
 #define OPERATOR_LEN 23
 #define BOUNDARYSIGN_LEN 11
@@ -253,4 +250,238 @@ int map_geti(Map *map, char *key, int default_) {
     if (!strcmp(map->keys->data[i], key))
       return (intptr_t)map->vals->data[i];
   return default_;
+}
+
+Function *new_func() {
+    Function *func = malloc(sizeof(Function));
+    func->lvars = new_vec();
+    func->bbs = new_vec();
+    return func;
+}
+
+Var *new_var() {
+    Var *var = malloc(sizeof(Var));
+    var->vals = new_vec();
+    return var;
+}
+
+Program *new_prog() {
+    Program *prog = malloc(sizeof(Program));
+    prog->gvars = new_vec();
+    prog->funcs = new_vec();
+    return prog;
+}
+
+Node *new_node(char *type_name, NODE_TYPE type) {
+    Node *node = (Node*)malloc(sizeof(Node));
+    node->type_name = type_name;
+    node->node_type = type;
+
+    node->body = NULL;
+    node->decl = NULL;
+    node->stmt = NULL;
+    node->expression = NULL;
+    node->id = NULL;
+
+    node->op = NULL;
+    node->lhs = NULL;
+    node->rhs = NULL;
+
+    node->init = NULL;
+    node->return_value = NULL;
+    node->update = NULL;
+    node->value = NULL;
+
+    node->test = NULL;
+    node->alternative = NULL;
+    node->consequent = NULL;
+
+    node->decls = new_vec();
+    node->stmts = new_vec();
+    node->params = new_vec();
+    node->args = new_vec();
+    node->cases = new_vec();
+    node->declarators = new_vec();
+    return node;
+}
+
+void printTab(int num) {
+    if (num < 0) return;
+    for(int i = 0;i < num;i++) {
+        printf("    ");
+    }
+}
+
+void printToken(Token *token) {
+    printf("%d\t%d\t%d\t%s\n", token->id, token->line, token->type, token->value);
+}
+
+void printTokenList(Token *tokens) {
+    printf("ID\tLINE\tTYPE\tVALUE\n");
+    Token *current_token = tokens;
+    while (current_token)
+    {
+        printToken(current_token);
+        current_token = current_token->next;
+    }
+}
+
+void printNode(Node *node, int tabs) {
+    if (node == NULL) return;
+    printTab(tabs);
+    printf("%s\n", node->type_name); // 公共属性 type_name
+    switch(node->node_type) {
+        case ND_ASSIGN_EXPR:
+        case ND_BINARY_EXPR:
+            printTab(tabs + 1);
+            printf("left: \n");
+            printNode(node->lhs, tabs + 2);
+            printTab(tabs + 1);
+            printf("right: \n");
+            printNode(node->rhs, tabs + 2);
+            printTab(tabs + 1);
+            printf("op: %s\n", node->op->value);
+            break;
+        case ND_BLOCK:
+            for (int i = 0;i < node->stmts->len;i++) {
+                printNode(node->stmts->data[i], tabs + 1);
+            }
+            break;
+        case ND_BREAK_STMT:
+            break;
+        case ND_CASE:
+            printTab(tabs + 1);
+            printf("test: \n");
+            printNode(node->test, tabs + 2);
+            printTab(tabs + 1);
+            printf("consequent: \n");
+            // p = node->consequent;
+            // while (p != NULL) {
+            //     printNode(p, tabs + 2);
+            //     p = p->next;
+            // }
+            break;
+        case ND_CONTINUE_STMT:
+            break;
+        case ND_DECL_LIST:
+            for (int i = 0;i < node->decls->len;i++) {
+                printNode(node->decls->data[i], tabs + 1);
+            }
+            break;
+        case ND_EXPR_STMT:
+            printNode(node->body, tabs + 1);
+            break;
+        case ND_FOR_STMT:
+            printTab(tabs + 1);
+            printf("init: \n");
+            printNode(node->init, tabs + 2);
+            printTab(tabs + 1);
+            printf("test: \n");
+            printNode(node->test, tabs + 2);
+            printTab(tabs + 1);
+            printf("update: \n");
+            printNode(node->update, tabs + 2);
+            printTab(tabs + 1);
+            printf("body: \n");
+            printNode(node->body, tabs + 2);
+            break;
+        case ND_FUNCALL:
+            break;
+        case ND_FUNC_DECL:
+            printTab(tabs + 1);
+            printf("id: %s\n", node->id->value);
+            printTab(tabs + 1);
+            printf("params: \n");
+            for (int i = 0;i < node->params->len;i++) {
+                printNode(node->params->data[i], tabs + 2);
+            }
+            printTab(tabs + 1);
+            printf("body: \n");
+            printNode(node->body, tabs + 2);
+            break;
+        case ND_FUNC_PARAM:
+            printTab(tabs + 1);
+            printf("id: %s\n", node->id->value);
+            break;
+        case ND_IDENT:
+            printTab(tabs + 1);
+            printf("id: %s\n", node->id->value);
+            break;
+        case ND_IF_STMT:
+            printTab(tabs + 1);
+            printf("test: \n");
+            printNode(node->test, tabs + 2);
+            printTab(tabs + 1);
+            printf("consequent: \n");
+            printNode(node->consequent, tabs + 2);
+            printTab(tabs + 1);
+            printf("alternative: \n");
+            printNode(node->alternative, tabs + 2);
+            break;
+        case ND_NUM:
+            printTab(tabs + 1);
+            printf("value: %s\n", node->tok->value);
+            break;
+        case ND_RETURN_STMT:
+            printNode(node->body, tabs + 1);
+            break;
+        case ND_SWITCH_STMT:
+            printTab(tabs + 1);
+            printf("discriminant: \n");
+            printNode(node->discriminant, tabs + 2);
+            printTab(tabs + 1);
+            printf("cases: \n");
+            for (int i = 0;i < node->cases->len;i++) {
+                printNode(node->cases->data[i], tabs + 2);
+            }
+            break;
+        case ND_STMT_LIST:
+            for (int i = 0;i < node->stmts->len;i++) {
+                printNode(node->stmts->data[i], tabs + 1);
+            }
+            break;
+        case ND_VAR_DECL:
+            printTab(tabs + 1);
+            printf("type: %d\n", node->decl_type);
+            printTab(tabs + 1);
+            printf("declarations: \n");
+            for (int i = 0;i <= node->declarators->len;i++) {
+                printNode(node->declarators->data[i], tabs + 2);
+            }
+            break;
+        case ND_VAR_DECLARATOR:
+            printTab(tabs + 1);
+            printf("id: %s\n", node->id->value);
+            printTab(tabs + 1);
+            printf("init: \n");
+            printNode(node->init, tabs + 2);
+            break;
+        case ND_WHILE:
+            break;
+        default:
+            printNode(node->body, tabs + 1);
+            break;
+    }
+}
+
+void printVar(Node *node) {
+    printf("");
+    printf("type: %d\n", node->decl_type);
+}
+
+void printFunction(Node *node) {
+
+}
+
+void printProgram(Program *prog) {
+    if (prog && prog->gvars && prog->gvars->len) {
+        printf("Global Variables:\n");
+        for (int i = 0;i < prog->gvars->len;i++)
+            printNode(prog->gvars->data[i], 0);
+    }
+    if (prog && prog->funcs && prog->funcs->len) {
+        printf("Functions:\n");
+        for (int i = 0;i < prog->funcs->len;i++)
+            printNode(prog->funcs->data[i], 0);
+    }
 }

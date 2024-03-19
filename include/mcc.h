@@ -17,6 +17,31 @@ typedef struct File {
 
 File *new_file(char *filename, char *path);
 
+/* 工具类 */
+typedef struct {
+  void **data;
+  int capacity;
+  int len;
+} Vector;
+
+Vector *new_vec(void);
+void vec_push(Vector *v, void *elem);
+void vec_pushi(Vector *v, int val);
+void *vec_pop(Vector *v);
+void *vec_last(Vector *v);
+bool vec_contains(Vector *v, void *elem);
+
+typedef struct {
+    Vector *keys;
+    Vector *vals;
+} Map;
+
+Map *new_map(void);
+void map_put(Map *map, char *key, void *val);
+void map_puti(Map *map, char *key, int val);
+void *map_get(Map *map, char *key);
+int map_geti(Map *map, char *key, int default_);
+
 /* (Alpha | _)(Alpha | Digit | _)* */
 /* (Digit)(Digit)* */
 /* "\"(* except for \")\"" */
@@ -187,7 +212,6 @@ typedef struct Node {
     // type decl
     TYPE decl_type;
     bool is_array;
-    int capacity;
 
     // func decl
     struct Node *decl;
@@ -198,10 +222,9 @@ typedef struct Node {
 
     // node list
     struct Node *next;
-    bool is_list;
 
     // VariableDeclaration
-    struct Node *declarations;
+    // struct Node *declarations;
 
     // ExprStmt
     struct Node *expression;
@@ -212,70 +235,69 @@ typedef struct Node {
     // OPERATOR op;
     Token *op;
     // Function
-    struct Node *params;
+    // struct Node *params;
     Token *id;
-    // if / for / while test expr
+
+    // if ( test ) consequent else alternative
+    // for ( init ; test ; update) body
+    // while ( test ) body
+    // switch ( discriminant ) body
+    // case var: body
     struct Node *test;
-    // if / else
     struct Node *consequent; // case also has consequent
     struct Node *alternative;
-    // for
     struct Node *init;
     struct Node *update;
-    // return
+    struct Node *discriminant;
     struct Node *return_value;
 
-    // switch
-    struct Node *discriminant;
+    Vector *decls;
+    Vector *stmts;
+    Vector *cases;
+    Vector *params;
+    Vector *args;
+    Vector *declarators;
 } Node;
 
-// 几种关键的节点类型
-/**
- * program
- * variable_declaration
- * function_declaration
- * expr
- * block_stmt
- * expr_stmt
-*/
+Node *new_node(char *type_name, NODE_TYPE node_type);
 
-/**
- * 常见节点类型可以根据node_type作处理
-*/
+// typedef struct {
+//     NODE_TYPE type;
+//     Node *exprs;
+// } SequenceExpr;
 
 typedef struct {
-    NODE_TYPE type;
-    Token *id;
-    Node *params;
-    Node *body;
-} FunctionDeclaration;
-
-typedef struct {
-    NODE_TYPE type;
-    Node *declarations;
-    TYPE kind;
-} VariableDeclaration;
-
-typedef struct {
-    NODE_TYPE type;
-    Node *expr;
-} ExprStmt;
-
-typedef struct {
-    NODE_TYPE type;
-    Node *lhs;
-    Node *rhs;
-} BinaryExpr;
-
-typedef struct {
-    NODE_TYPE type;
-    Node *exprs;
-} SequenceExpr;
-
-typedef struct {
-    NODE_TYPE type;
-    Node *body;
+  Vector *gvars;
+  Vector *funcs;
 } Program;
+
+Program *new_prog();
+
+typedef struct {
+  char *name;
+  Node *node;
+  Vector *lvars;
+  Vector *stmts;
+  Vector *bbs;
+} Function;
+
+Function *new_func();
+
+typedef struct {
+    char *name;
+    Node *node;
+    int type;
+
+    void *val;
+
+    bool is_global;
+    bool is_array;
+    int len; // if is array
+    Vector *vals;
+    // bool is_struct;
+} Var;
+
+Var *new_var();
 
 Program *parse(Token *tokens);
 
@@ -325,29 +347,12 @@ typedef struct {
     int ir_num;
 } BB; /*basic block*/
 
-/* 工具类 */
-typedef struct {
-  void **data;
-  int capacity;
-  int len;
-} Vector;
-
-Vector *new_vec(void);
-void vec_push(Vector *v, void *elem);
-void vec_pushi(Vector *v, int val);
-void *vec_pop(Vector *v);
-void *vec_last(Vector *v);
-bool vec_contains(Vector *v, void *elem);
-
-typedef struct {
-    Vector *keys;
-    Vector *vals;
-} Map;
-
-Map *new_map(void);
-void map_put(Map *map, char *key, void *val);
-void map_puti(Map *map, char *key, int val);
-void *map_get(Map *map, char *key);
-int map_geti(Map *map, char *key, int default_);
+void printTab(int num);
+void printToken(Token *token);
+void printTokenList(Token *tokens);
+void printNode(Node *node, int tabs);
+void printVar(Node *node);
+void printFunction(Node *node);
+void printProgram(Program *prog);
 
 #endif
