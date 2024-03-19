@@ -24,7 +24,7 @@
  * | labeled-statement
  * | iteration-statement 
  * | jump-statement
- * 16.expression-statement −> [ expression ]
+ * 16.expression-statement −> [ expression ] ; | ε
  * 17.selection-statement −> if ( expression ) statement { else if ( expression ) statement } [ else statement ]
  * | switch ( expression ) statement
  * 18.iteration-statement −> while ( expression ) statement
@@ -92,6 +92,7 @@ static Node *multiplicative_expression();
 static Node *primary_expression();
 static Node *call_function();
 static Node *argument_list();
+static Node *constant();
 
 static Node *new_node(char *type_name, NODE_TYPE type) {
     Node *node = (Node*)malloc(sizeof(Node));
@@ -225,11 +226,17 @@ static Node *variable_declaration() {
     if (var_declarator == NULL) {
         return NULL;
     }
+
+    var_declarator->decl_type = node->decl_type;
+
     node->declarations = var_declarator;
     Node *p = var_declarator;
     while (match(",")) {
         next_token();
         Node *new_declarator = variable_declarator();
+
+        new_declarator->decl_type = node->decl_type;
+
         p->next = new_declarator;
         p = p->next;
     }
@@ -923,7 +930,7 @@ static Node *multiplicative_expression() {
 }
 
 /**
- * 30.primary-expression −> variable | NUM | ( expression ) | call-function
+ * 30.primary-expression −> variable | constant | ( expression ) | call-function
 */
 static Node *primary_expression() {
     if (current_token && current_token->next && strcmp(current_token->next->value, "(") == 0) {
@@ -932,12 +939,12 @@ static Node *primary_expression() {
     if (match_type(IDENTIFIER)) {
         return variable();
     }
-    else if (match_type(NUMBER)) {
-        Token *tok = &(*current_token);
-        next_token();
-        Node *node = new_node("Literal", ND_NUM);
-        node->tok = tok;
-        return node;
+    else if (match_type(NUMBER) || match_type(CHARACTER)) {
+        // Token *tok = &(*current_token);
+        // next_token();
+        // Node *node = new_node("Literal", ND_NUM);
+        // node->tok = tok;
+        return constant();
     }
     else if (match("(")) {
         next_token();
@@ -947,6 +954,25 @@ static Node *primary_expression() {
     }
     else {
         return call_function();
+    }
+}
+
+/**
+ * constant -> integer_constant(NUM) | character_constant
+*/
+static Node *constant() {
+    Token *tok = &(*current_token);
+    if (match_type(NUMBER)) {
+        next_token();
+        Node *node = new_node("Literal", ND_NUM);
+        node->tok = tok;
+        return node;
+    }
+    else {
+        next_token();
+        Node *node = new_node("Character", ND_CHAR);
+        node->tok = tok;
+        return node;
     }
 }
 
@@ -997,3 +1023,20 @@ static Node *argument_list() {
     }
     return expr;
 }
+
+typedef struct {
+    int op_type;
+    int precedence; // 优先级
+    int associativity; // 结合性 LEFT | RIGHT
+} Operator;
+
+// static Operator init_operator(int op_type, int precedence, int associativity) {
+// }
+
+// static Node *parse_expr(Node *node) {
+//     return parse_expr_1(node->lhs, 0);
+// }
+
+// static Node *parse_expr_1(Node *node, int min_prec) {
+
+// }

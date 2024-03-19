@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include "include/mcc.h"
-// #include "include/util.h"
 
 char *new_str()
 {
@@ -16,7 +15,6 @@ char *str_push(char *str, char c)
 {
     int new_len = strlen(str) + 1;
     char *new_str = (char *)realloc(str, new_len + 1); // last byte store '\0'
-    // char *rs = strncat(new_str, &c, 1);
     if (new_str != NULL) {
         new_str[new_len - 1] = c;
         new_str[new_len] = '\0';
@@ -111,6 +109,24 @@ Token *Lexer(char *str)
             str_push(s, str[i]);
             i++;
             Token *token = new_token(count, line, STRING, s);
+            p->next = token;
+            p = p->next;
+            count++;
+            continue;
+        }
+        /* 字符常量 */
+        if (str[i] == '\'')
+        {
+            i++;
+            char *s = new_str();
+            if (str[i] == '\'')
+            {
+                str_push(s, str[i]);
+                i++;
+            }
+            str_push(s, str[i]);
+            i += 2;
+            Token *token = new_token(count, line, CHARACTER, s);
             p->next = token;
             p = p->next;
             count++;

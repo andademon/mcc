@@ -1,8 +1,10 @@
 #ifndef __MCC_H__
 #define __MCC_H__
-#include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <stdbool.h>
+#include <stdint.h>
 #define TRUE 1
 #define FALSE 0
 #define EOF (-1)
@@ -23,6 +25,7 @@ typedef enum
     KEYWORD, /* 关键字 */
     IDENTIFIER, /* 标识符 */
     NUMBER, /* 数字常量 */
+    CHARACTER, /* 字符常量 */
     STRING, /* 字符串常量 */
     OPERATOR, /* 运算符 */
     BOUNDARYSIGN, /* 界符 */
@@ -126,6 +129,7 @@ typedef enum {
   ND_VLA_PTR,   // VLA designator
   ND_FUNC_DECL,
   ND_NUM,       // literal Number
+  ND_CHAR,
   ND_IDENT,
   ND_CAST,      // Type cast
   ND_MEMZERO,   // Zero-clear a stack variable
@@ -136,7 +140,7 @@ typedef enum {
 } NODE_TYPE;
 
 typedef enum {
-    VOID,
+    VOID = 0,
     CHAR,
     INT,
     FLOAT,
@@ -282,12 +286,36 @@ Program *parse(Token *tokens);
 // void codegen(Program *prog);
 void codegen(Node *node);
 
+enum {
+    IR_ADD = 1,
+    IR_ADDI,
+    IR_SUB,
+    IR_LUI,
+    IR_AUIPC,
+
+    IR_NEG,
+    IR_MV,
+    IR_NOP,
+    IR_LI,
+
+    IR_XOR,
+    IR_OR,
+    IR_AND,
+    IR_XORI,
+    IR_ORI,
+    IR_ANDI,
+
+    IR_RET,
+};
+
 /* 三地址代码形式的IR */
 typedef struct {
     int op;
     int r0;
     int r1;
     int r2;
+
+    int ir_type;
 } IR;
 
 /* 基本块 */
@@ -297,5 +325,29 @@ typedef struct {
     int ir_num;
 } BB; /*basic block*/
 
+/* 工具类 */
+typedef struct {
+  void **data;
+  int capacity;
+  int len;
+} Vector;
+
+Vector *new_vec(void);
+void vec_push(Vector *v, void *elem);
+void vec_pushi(Vector *v, int val);
+void *vec_pop(Vector *v);
+void *vec_last(Vector *v);
+bool vec_contains(Vector *v, void *elem);
+
+typedef struct {
+    Vector *keys;
+    Vector *vals;
+} Map;
+
+Map *new_map(void);
+void map_put(Map *map, char *key, void *val);
+void map_puti(Map *map, char *key, int val);
+void *map_get(Map *map, char *key);
+int map_geti(Map *map, char *key, int default_);
 
 #endif
