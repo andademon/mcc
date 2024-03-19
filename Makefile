@@ -1,2 +1,18 @@
 CC=gcc
-CFLAGS=-Wall -Og -fno-stack-protector -z execstack -O0
+CFLAGS=-O0 -g
+SRCS=main.c scanner.c parser.c util.c
+OBJS=$(SRCS:.c=.o)
+TARGET=main
+
+.PHONY: all clean
+
+all: $(TARGET)
+
+$(TARGET): $(OBJS)
+	$(CC) $(CFLAGS) -o $@ $(OBJS)
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+clean:
+	rm -f $(OBJS) $(TARGET)
