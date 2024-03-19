@@ -386,6 +386,18 @@ void printNode(Node *node, int tabs) {
             printNode(node->body, tabs + 2);
             break;
         case ND_FUNCALL:
+            printTab(tabs + 1);
+            printf("function_name:\n");
+            printTab(tabs + 2);
+            printf("%s\n", node->id->value);
+            if (node->args && node->args->len > 0) {
+                printTab(tabs + 1);
+                printf("args:\n");
+                for (int i = 0; i < node->args->len; i++) {
+                    printNode(node->args->data[i], tabs + 2);
+                }
+                
+            }
             break;
         case ND_FUNC_DECL:
             printTab(tabs + 1);
@@ -457,6 +469,8 @@ void printNode(Node *node, int tabs) {
             printNode(node->init, tabs + 2);
             break;
         case ND_WHILE:
+            break;
+        case ND_STR:
             break;
         default:
             printNode(node->body, tabs + 1);

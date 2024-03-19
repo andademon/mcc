@@ -155,6 +155,7 @@ typedef enum {
   ND_FUNC_DECL,
   ND_NUM,       // literal Number
   ND_CHAR,
+  ND_STR,
   ND_IDENT,
   ND_CAST,      // Type cast
   ND_MEMZERO,   // Zero-clear a stack variable

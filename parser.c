@@ -586,8 +586,11 @@ static Node *iteration_statement() {
     else if (match("for")) {
         next_token();
         expect("(");
-        Node *init = variable_declaration();
-        if (init == NULL) expect(";"); //如果init不是NULL说明;已被读取
+        // TODO: for循环的init部分暂时不能支持局部变量声明
+        // Node *init = variable_declaration();
+        Node *init = expression();
+        // if (init == NULL) expect(";"); //如果init不是NULL说明;已被读取
+        expect(";");
         Node *test = expression();
         expect(";");
         Node *update = expression();
@@ -862,7 +865,7 @@ static Node *primary_expression() {
     if (match_type(IDENTIFIER)) {
         return variable();
     }
-    else if (match_type(NUMBER) || match_type(CHARACTER)) {
+    else if (match_type(NUMBER) || match_type(CHARACTER) || match_type(STRING)) {
         // Token *tok = &(*current_token);
         // next_token();
         // Node *node = new_node("Literal", ND_NUM);
@@ -881,7 +884,7 @@ static Node *primary_expression() {
 }
 
 /**
- * constant -> integer_constant(NUM) | character_constant
+ * constant -> integer_constant(NUM) | character_constant | String
 */
 static Node *constant() {
     Token *tok = &(*current_token);
@@ -891,9 +894,15 @@ static Node *constant() {
         node->tok = tok;
         return node;
     }
-    else {
+    else if (match_type(CHARACTER)) {
         next_token();
         Node *node = new_node("Character", ND_CHAR);
+        node->tok = tok;
+        return node;
+    }
+    else if (match_type(STRING)) {
+        next_token();
+        Node *node = new_node("String", ND_STR);
         node->tok = tok;
         return node;
     }
@@ -904,6 +913,7 @@ static Node *constant() {
 */
 static Node *call_function() {
     if (match_type(IDENTIFIER)) {
+        Token *tok = &(*current_token);
         next_token();
         if (match("(")) {
             next_token();
@@ -911,6 +921,7 @@ static Node *call_function() {
             if (match(")")) {
                 next_token();
                 Node *funcall = new_node("CallExpr", ND_FUNCALL);
+                funcall->id = tok;
                 funcall->args = args;
                 return funcall;
             }
