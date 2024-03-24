@@ -272,10 +272,10 @@ Program *new_prog() {
     return prog;
 }
 
-Node *new_node(char *type_name, NODE_TYPE type) {
+Node *new_node(char *type_name, int node_type) {
     Node *node = (Node*)malloc(sizeof(Node));
     node->type_name = type_name;
-    node->node_type = type;
+    node->node_type = node_type;
 
     node->body = NULL;
     node->decl = NULL;
@@ -343,24 +343,24 @@ void printNode(Node *node, int tabs) {
             printf("op: %s\n", node->op->value);
             break;
         case ND_BLOCK:
+            for (int i = 0;i < node->decls->len;i++) {
+                printNode(node->decls->data[i], tabs + 1);
+            }
             for (int i = 0;i < node->stmts->len;i++) {
                 printNode(node->stmts->data[i], tabs + 1);
             }
             break;
         case ND_BREAK_STMT:
             break;
-        case ND_CASE:
+        case ND_CASE: {
             printTab(tabs + 1);
             printf("test: \n");
             printNode(node->test, tabs + 2);
             printTab(tabs + 1);
             printf("consequent: \n");
-            // p = node->consequent;
-            // while (p != NULL) {
-            //     printNode(p, tabs + 2);
-            //     p = p->next;
-            // }
+            printNode(node->consequent, tabs + 2);
             break;
+        }
         case ND_CONTINUE_STMT:
             break;
         case ND_DECL_LIST:
@@ -468,7 +468,13 @@ void printNode(Node *node, int tabs) {
             printf("init: \n");
             printNode(node->init, tabs + 2);
             break;
-        case ND_WHILE:
+        case ND_WHILE_STMT:
+            printTab(tabs + 1);
+            printf("test:\n");
+            printNode(node->test, tabs + 2);
+            printTab(tabs + 1);
+            printf("body:\n");
+            printNode(node->body, tabs + 2);
             break;
         case ND_STR:
             break;

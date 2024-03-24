@@ -10,11 +10,12 @@
  * 5.type-specifier −> int | void | struct-specifier
  * 6.struct-specifier −> struct [ID] [ { struct-declaration-list} ]
  * 7.struct-declaration-list ->
- * 8.function-declaration -> type-specifier ID ( parameters ) compound-statement
+ * 8.function-declaration -> type-specifier ID ( parameters ) function-body
+ * n.function-body -> { [local-declarations] [statement-list] }
  * 9.parameters −> parameter-list | void | ε
  * 10.parameter-list -> parameter { , parameter }
  * 11.parameter −> type-specifier ID [ “[” “]” ]
- * 12.compound-statement −> { [local-declarations] [statement-list] }
+ * 12.compound-statement −> { [statement-list] }
  * 13.local-declarations −> { variable-declaration }
  * 14.statement-list −> { statement }
  * 15.statement −> compound-statement
@@ -91,6 +92,7 @@ static Node *primary_expression();
 static Node *call_function();
 static Vector *argument_list();
 static Node *constant();
+static Node *function_body();
 
 void next_token () {
     current_token = current_token->next;
@@ -578,7 +580,7 @@ static Node *iteration_statement() {
         }
         expect(")");
         Node *body = statement();
-        Node *while_stmt = new_node("WhileStmt", ND_WHILE);
+        Node *while_stmt = new_node("WhileStmt", ND_WHILE_STMT);
         while_stmt->test = test;
         while_stmt->body = body;
         return while_stmt;
@@ -647,6 +649,8 @@ static Node *jump_statement() {
  * labeled-statement -> ID : statement
  * | case primary-expression : statement-list
  * | default : statement-list
+ * 
+ * 已确认，不需要修改文法，严格按照原文法更容易处理
 */
 static Node *labeled_statement() {
     if (match("case")) {
@@ -654,15 +658,7 @@ static Node *labeled_statement() {
         Node *node = new_node("Case", ND_CASE);
         Node *test = primary_expression();
         expect(":");
-        Node *stmt_list = new_node("StatementList", ND_STMT_LIST);
-        Node *p = stmt_list;
-        while (!match("case") && !match("default") && !match("}")) {
-            Node *stmt = statement();
-            p->next = stmt;
-            p = p->next;
-        }
-        node->test = test;
-        node->consequent = stmt_list->next;
+        node->consequent = statement();
         return node;
     }
     else if (match("default")) {
@@ -670,9 +666,7 @@ static Node *labeled_statement() {
         Node *node = new_node("Case", ND_CASE);
         node->test = NULL;
         expect(":");
-        Node *consequent = new_node("StatementList", ND_STMT_LIST);
-        consequent->stmts = statement_list();
-        node->consequent = consequent;
+        node->consequent = statement();
         return node;
     }
     else {

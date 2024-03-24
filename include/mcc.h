@@ -93,91 +93,52 @@ char *str_pop(char *str);
 
 // AST node
 typedef enum {
-  ND_NULL_EXPR, // Do nothing
-  ND_ADD,       // +
-  ND_SUB,       // -
-  ND_MUL,       // *
-  ND_DIV,       // /
-  ND_NEG,       // unary -
-  ND_MOD,       // %
-  ND_BITAND,    // &
-  ND_BITOR,     // |
-  ND_BITXOR,    // ^
-  ND_SHL,       // <<
-  ND_SHR,       // >>
-  ND_EQ,        // ==
-  ND_NE,        // !=
-  ND_LT,        // <
-  ND_LE,        // <=
-  ND_ASSIGN,    // =
-  ND_COND,      // ?:
-  ND_COMMA,     // ,
-  ND_MEMBER,    // . (struct member access)
-  ND_ADDR,      // unary &
-  ND_DEREF,     // unary *
-  ND_NOT,       // !
-  ND_BITNOT,    // ~
-  ND_LOGAND,    // &&
-  ND_LOGOR,     // ||
-  ND_RETURN_STMT,    // "return"
-  ND_IF,        // "if"
-  ND_FOR,       // "for"
-  ND_WHILE,     // "while"
-  ND_DO,        // "do"
-  ND_SWITCH,    // "switch"
-  ND_CASE,      // "case"
-  ND_BLOCK,     // { ... }
-  ND_GOTO_STMT,      // "goto"
-  ND_GOTO_EXPR, // "goto" labels-as-values
-  ND_BREAK_STMT,
-  ND_CONTINUE_STMT,
-  ND_LABEL,     // Labeled statement
-  ND_LABEL_VAL, // [GNU] Labels-as-values
-  ND_FUNCALL,   // Function call
-  ND_FUNC_PARAM,
-  ND_STMT_LIST,
-  ND_DECL_LIST,
-  ND_VAR_DECLARATOR,
+    ND_NULL_EXPR, // Do nothing
 
-  ND_IF_STMT,
-  ND_SWITCH_STMT,
-  ND_WHILE_STMT,
-  ND_FOR_STMT,
-  ND_JUMP_STMT,
+    ND_STMT_LIST, // stmts
+    ND_DECL_LIST, // decls
 
-  ND_EXPR_STMT, // Expression statement
-  ND_TYPE_DECL, // type specifier
-  ND_BINARY_EXPR, // binary expression
-  ND_ASSIGN_EXPR, // assignment expression
-  ND_VAR,       // Variable
-  ND_VAR_DECL, // Variable declaration
-  ND_VLA_PTR,   // VLA designator
-  ND_FUNC_DECL,
-  ND_NUM,       // literal Number
-  ND_CHAR,
-  ND_STR,
-  ND_IDENT,
-  ND_CAST,      // Type cast
-  ND_MEMZERO,   // Zero-clear a stack variable
-  ND_ASM,       // "asm"
-  ND_CAS,       // Atomic compare-and-swap
-  ND_EXCH,      // Atomic exchange
-  ND_PROGRAM
+    ND_BLOCK,     // { ... }
+    ND_CASE,      // case
+    ND_GOTO_STMT,      // "goto"
+    ND_CONTINUE_STMT, // continue
+    ND_BREAK_STMT, // break
+    ND_RETURN_STMT,    // return
+  
+    ND_VAR_DECL, // Variable declaration
+    ND_TYPE_DECL, // type specifier
+    ND_VAR_DECLARATOR,
+
+    ND_FUNC_DECL, // Function decl
+    ND_FUNCALL,   // Function call
+    ND_FUNC_PARAM,
+
+    ND_IF_STMT,
+    ND_SWITCH_STMT,
+    ND_WHILE_STMT,
+    ND_FOR_STMT,
+    ND_JUMP_STMT,
+
+    ND_EXPR_STMT, // Expression statement
+    ND_BINARY_EXPR, // binary expression
+    ND_ASSIGN_EXPR, // assignment expression
+    ND_NUM,       // literal Number
+    ND_CHAR,
+    ND_STR,
+    ND_IDENT,
+    ND_CAST,      // Type cast
+    ND_PROGRAM
 } NODE_TYPE;
 
 typedef enum {
     VOID = 0,
     CHAR,
     INT,
-    FLOAT,
-    DOUBLE,
-    SHORT,
-    LONG,
     STRUCT
 } TYPE;
 
-typedef enum {
-    OP_ADD,       // +
+enum {
+    OP_ADD = 0,       // +
     OP_SUB,       // -
     OP_MUL,       // *
     OP_DIV,       // /
@@ -202,11 +163,11 @@ typedef enum {
     OP_BITNOT,    // ~
     OP_LOGAND,    // &&
     OP_LOGOR,     // ||
-} OPERATOR_TYPE;
+};
 
 typedef struct Node {
     char *type_name;
-    NODE_TYPE node_type;
+    int node_type;
     char *value;
 
     Token *tok;
@@ -260,7 +221,7 @@ typedef struct Node {
     Vector *declarators;
 } Node;
 
-Node *new_node(char *type_name, NODE_TYPE node_type);
+Node *new_node(char *type_name, int node_type);
 
 // typedef struct {
 //     NODE_TYPE type;
@@ -290,6 +251,8 @@ typedef struct {
     int type;
 
     void *val;
+    
+    int offset;
 
     bool is_global;
     bool is_array;
@@ -355,5 +318,12 @@ void printNode(Node *node, int tabs);
 void printVar(Node *node);
 void printFunction(Node *node);
 void printProgram(Program *prog);
+
+typedef struct {
+    int vn; // virtual register number
+    int rn; // real register number
+} Reg;
+
+// Reg *new_reg();
 
 #endif
