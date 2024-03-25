@@ -505,3 +505,50 @@ void printProgram(Program *prog) {
             printNode(prog->funcs->data[i], 0);
     }
 }
+
+// 将语法树结构转换为更易处理的var + function
+Program *tree_to_prog(Program *prog) {
+    Program *p = new_prog();
+    for (int i = 0;i < prog->gvars->len;i++) {
+        Node *decl = prog->gvars->data[i];
+        for (int i = 0;i < decl->declarators->len;i++) {
+            Node *declarator = decl->declarators->data[i];
+            Var *var = new_var();
+            var->name = declarator->id->value;
+            var->type = declarator->decl_type;
+            var->is_array = declarator->is_array;
+            // if (var->is_array) var->len = declarator->len;
+            var->init = declarator->init;
+            var->offset = 0;
+
+            vec_push(p->gvars, var);
+        }
+    }
+    for (int i = 0;i < prog->funcs->len;i++) {
+        Node *func = prog->funcs->data[i];
+
+        Function *fn = new_func();
+        fn->name = func->id->value;
+        fn->node = func;
+        // fn->lvars = func->body->decls;
+        if (func->body->decls->len)
+            for (int i = 0;i < func->body->decls->len;i++) {
+                Node *decl = func->body->decls->data[i];
+                for (int j = 0;j < decl->declarators->len;j++) {
+                    Node *declarator = decl->declarators->data[j];
+                    Var *var = new_var();
+                    var->name = declarator->id->value;
+                    var->type = declarator->decl_type;
+                    var->is_array = declarator->is_array;
+                    // if (var->is_array) var->len = declarator->len;
+                    var->init = declarator->init;
+                    var->offset = 0;
+                    vec_push(fn->lvars, var);
+                }
+            }
+
+        fn->stmts = func->body->stmts;
+        vec_push(p->funcs, fn);
+    }
+    return p;
+}

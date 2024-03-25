@@ -235,6 +235,7 @@ static Node *variable_declarator() {
             next_token();
             node->is_array = true;
             if (match_type(NUMBER)) {
+                // node->len = current_token->value;
                 next_token();
                 if (match("]")) {
                     next_token();
@@ -878,25 +879,25 @@ static Node *primary_expression() {
 }
 
 /**
- * constant -> integer_constant(NUM) | character_constant | String
+ * constant -> NUM | CHAR | String
 */
 static Node *constant() {
     Token *tok = &(*current_token);
     if (match_type(NUMBER)) {
         next_token();
-        Node *node = new_node("Literal", ND_NUM);
+        Node *node = new_node("Constant", ND_NUM);
         node->tok = tok;
         return node;
     }
     else if (match_type(CHARACTER)) {
         next_token();
-        Node *node = new_node("Character", ND_CHAR);
+        Node *node = new_node("Constant", ND_CHAR);
         node->tok = tok;
         return node;
     }
     else if (match_type(STRING)) {
         next_token();
-        Node *node = new_node("String", ND_STR);
+        Node *node = new_node("Constant", ND_STR);
         node->tok = tok;
         return node;
     }

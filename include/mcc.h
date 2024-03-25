@@ -130,12 +130,12 @@ typedef enum {
     ND_PROGRAM
 } NODE_TYPE;
 
-typedef enum {
+enum {
     VOID = 0,
     CHAR,
     INT,
     STRUCT
-} TYPE;
+};
 
 enum {
     OP_ADD = 0,       // +
@@ -172,8 +172,9 @@ typedef struct Node {
 
     Token *tok;
     // type decl
-    TYPE decl_type;
+    int decl_type;
     bool is_array;
+    int len;
 
     // func decl
     struct Node *decl;
@@ -247,18 +248,17 @@ Function *new_func();
 
 typedef struct {
     char *name;
-    Node *node;
     int type;
+    char *data;
 
-    void *val;
-    
     int offset;
 
-    bool is_global;
     bool is_array;
-    int len; // if is array
+    // if is array
+    int len;
     Vector *vals;
-    // bool is_struct;
+    
+    Node *init;
 } Var;
 
 Var *new_var();
@@ -269,8 +269,7 @@ Program *parse(Token *tokens);
 
 // codegen.c
 
-// void codegen(Program *prog);
-void codegen(Node *node);
+void codegen(Program *prog);
 
 enum {
     IR_ADD = 1,
@@ -294,12 +293,19 @@ enum {
     IR_RET,
 };
 
+/* 寄存器 */
+
+typedef struct {
+    int vn; // virtual register number
+    int rn; // real register number
+} Reg;
+
 /* 三地址代码形式的IR */
 typedef struct {
     int op;
-    int r0;
-    int r1;
-    int r2;
+    Reg *r0;
+    Reg *r1;
+    Reg *r2;
 
     int ir_type;
 } IR;
@@ -307,8 +313,10 @@ typedef struct {
 /* 基本块 */
 typedef struct {
     int label;
-    IR *ir;
-    int ir_num;
+    Vector *ir;
+
+    Vector *in_regs;
+    Vector *out_regs;
 } BB; /*basic block*/
 
 void printTab(int num);
@@ -319,11 +327,9 @@ void printVar(Node *node);
 void printFunction(Node *node);
 void printProgram(Program *prog);
 
-typedef struct {
-    int vn; // virtual register number
-    int rn; // real register number
-} Reg;
-
 // Reg *new_reg();
+
+// 将语法树结构转换为更易处理的var + function
+Program *tree_to_prog(Program *prog);
 
 #endif
