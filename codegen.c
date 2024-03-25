@@ -45,24 +45,32 @@ static int new_reg() {
     return reg++;
 }
 
+// 全局变量保存在静态数据段
 static void gen_gvar(Node *node) {
-    if (node->node_type != ND_VAR_DECLARATOR) return;
-    printf("%s:\n", node->id->value);
-    int size = get_size(node->decl_type);
-    if (node->init == NULL) {
-        printf("\t.zero\t%d", size);
-        return;
-    }
-    else {
-        // CHARACTER
-        if (node->init->tok->type == CHARACTER) {
-            printf("\t%s\t%d", get_size_name(size), (int)node->init->tok->value[0]);
+    if (node->node_type != ND_VAR_DECL) return;
+
+    int len = node->declarators->len;
+
+    for (int i = 0;i < node->declarators->len;i++) {
+        Node *temp_node = node->declarators->data[i];
+        printf("%s:\n", temp_node->id->value);
+        if (temp_node->init == NULL) {
+            int size = get_size(node->decl_type);
+            printf("\t.zero\t%d\n", size);
+            return;
         }
-        // NUMBER
         else {
-            printf("\t%s\t%s", get_size_name(size), node->init->tok->value);
+            switch (temp_node->decl_type) {
+                case INT: {
+                    printf("\t.word\t%s\n", temp_node->init->tok->value);
+                    break;
+                }
+                case CHAR: {
+                    printf("\t.byte\t%d\n", (int)temp_node->init->tok->value[0]);
+                    break;
+                }
+            }
         }
-        return;
     }
 }
 
@@ -70,7 +78,16 @@ static int offset = 0;
 
 // 将局部变量保存在内存中，返回记录的偏移地址（Q: 偏移地址如何计算？）
 static void gen_lvar(Node *node) {
+
+    if (node->node_type != ND_VAR_DECL) return;
+
+    // 无初始化，跳过
+    // 有初始化，且初始化类型为以下之一：
+    // INT: NUM -> 加载到寄存器，然后保存到内存，在符号表中记录在内存中的偏移量 -> li，sw
+    // CHAR: CHARACTER, li, sb
+    // BOOL: TRUTH, 同上 li, sb
     int len = node->declarators->len;
+
     for (int i = 0;i < len;i++) {
         Node *temp_node = node->declarators->data[i];
         // 当且仅当变量有赋初值且为常量赋值时
@@ -95,11 +112,6 @@ static void gen_lvar(Node *node) {
         }
         offset += 4;
     }
-    // 无初始化，跳过
-    // 有初始化，且初始化类型为以下之一：
-    // INT: NUM -> 加载到寄存器，然后保存到内存，在符号表中记录在内存中的偏移量 -> li，sw
-    // CHAR: CHARACTER, li, sb
-    // BOOL: TRUTH, 同上 li, sb
 }
 
 static int gen_stmt(Node *node){
@@ -161,4 +173,8 @@ void codegen(Node *node) {
     // gen_expr(node);
     // gen_gvar(node);
     gen_lvar(node);
+}
+
+void codegen_test(Node *node) {
+    gen_gvar(node);
 }
