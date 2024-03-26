@@ -24,7 +24,7 @@ void insert(SymbolTable *node, char *key, void *val) {
 }
 
 void *lookup(SymbolTable *node, char *key) {
-    return map_get(node->entries, key);    
+    return map_get(node->entries, key);
 }
 
 SymbolTable *enterScope(SymbolTable *parent) {
@@ -41,13 +41,14 @@ SymbolTable *exitScope(SymbolTable *current) {
 SymbolTable *buildSymbolTable(Program *prog) {
     SymbolTable *table = createSymbolTable(0, NULL);
     SymbolTable *currentScope = table;
-    // scan_tree(currentScope, prog->body);
     for (int i = 0;i < prog->gvars->len;i++) {
         Var *var = prog->gvars->data[i];
+        if (lookup(currentScope, var->name) != NULL) sema_error("duplicated symbol definition.");
         insert(currentScope, var->name, var);
     }
     for (int i = 0;i < prog->funcs->len;i++) {
         Function *fn = prog->funcs->data[i];
+        if (lookup(currentScope, fn->name) != NULL) sema_error("duplicated symbol definition.");
         insert(currentScope, fn->name, NULL);
         SymbolTable *temp_scope = enterScope(currentScope);
         for (int i = 0;i < fn->node->params->len;i++) {
@@ -58,10 +59,12 @@ SymbolTable *buildSymbolTable(Program *prog) {
             var->offset = 0;
             var->is_array = param->is_array;
             var->type = param->decl_type;
+            if (lookup(temp_scope, var->name) != NULL) sema_error("duplicated symbol definition.");
             insert(temp_scope, var->name, var);
         }
         for (int i = 0;i < fn->lvars->len;i++) {
             Var *var = fn->lvars->data[i];
+            if (lookup(temp_scope, var->name) != NULL) sema_error("duplicated symbol definition.");
             insert(temp_scope, var->name, var);
         }
     }
