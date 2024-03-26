@@ -225,6 +225,13 @@ static void gen_stmt(Node *node) {
             gen_expr(node->body);
             break;
         }
+        case ND_RETURN_STMT: {
+            // 如果return语句不含返回值，则直接return,否则将计算返回值并将返回值移动至返回值寄存器
+            if (node->body == NULL) return;
+            Reg *reg = gen_expr(node->body);
+            printf("mv a0,%d\n",reg->vn);
+            break;
+        }
     }
 }
 
@@ -237,7 +244,7 @@ static void gen_param(Node *node, int i) {
 
 int compute_var_size(Var *var) {
     int size = get_size(var->type);
-    size = (size < 4) ? 4 :size;
+    size = (size < 8) ? 8 :size;
     if (var->is_array) return size * var->len;
     return size;
 }
@@ -264,8 +271,8 @@ void emit_code(Function *fn) {
     printf(".%s\n", fn->name);
 
     printf("addi    sp,sp,-%d\n", stack_size);
-    printf("sd      ra,24(sp)\n");
-    printf("sd      s0,16(sp)\n");
+    printf("sd      ra,%d(sp)\n", stack_size - 8);
+    printf("sd      s0,%d(sp)\n", stack_size - 16);
     printf("addi    s0,sp,%d\n", stack_size);
 
     puts("");
@@ -276,14 +283,14 @@ void emit_code(Function *fn) {
     for (int i = 0;i < fn->lvars->len;i++) {
         gen_lvar(fn->lvars->data[i]);
     }
-    // for (int i = 0;i < node->body->stmts->len;i++) {
-    //     gen_stmt(node->body->stmts->data[i]);
-    // }
+    for (int i = 0;i < fn->stmts->len;i++) {
+        gen_stmt(fn->stmts->data[i]);
+    }
 
     puts("");
 
-    printf("ld      ra,24(sp)\n");
-    printf("ld      s0,16(sp)\n");
+    printf("ld      ra,%d(sp)\n", stack_size - 8);
+    printf("ld      s0,%d(sp)\n", stack_size - 16);
     printf("addi    sp,sp,%d\n", stack_size);
     printf("jr      ra\n");
 }
