@@ -267,6 +267,23 @@ Program *parse(Token *tokens);
 
 // sema.c
 
+/* 符号表 */
+typedef struct SymbolTable {
+    int scopeLevel;
+    Map *entries;
+    struct SymbolTable *parent;
+    Vector *children;
+} SymbolTable;
+
+struct SymbolTable *createSymbolTable(int scopeLevel, struct SymbolTable *parent);
+struct SymbolTable *enterScope(struct SymbolTable *parent);
+struct SymbolTable *exitScope(struct SymbolTable *current);
+void insert(struct SymbolTable *node, char *key, void *val);
+void *lookup(struct SymbolTable *node, char *name);
+void sema_error(char *msg);
+struct SymbolTable *buildSymbolTable(Program *prog);
+void sema(Program *prog);
+
 // codegen.c
 
 void codegen(Program *prog);
@@ -300,16 +317,6 @@ typedef struct {
     int rn; // real register number
 } Reg;
 
-/* 三地址代码形式的IR */
-typedef struct {
-    int op;
-    Reg *r0;
-    Reg *r1;
-    Reg *r2;
-
-    int ir_type;
-} IR;
-
 /* 基本块 */
 typedef struct {
     int label;
@@ -318,6 +325,22 @@ typedef struct {
     Vector *in_regs;
     Vector *out_regs;
 } BB; /*basic block*/
+
+/* 三地址代码形式的IR */
+typedef struct {
+    int op;
+    Reg *r0;
+    Reg *r1;
+    Reg *r2;
+
+    int ir_type;
+
+    BB *bb1;
+    BB *bb2;
+
+    // Load/store size in bytes
+    int size;
+} IR;
 
 void printTab(int num);
 void printToken(Token *token);

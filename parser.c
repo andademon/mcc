@@ -383,9 +383,11 @@ static Node *parameter() {
     }
     Node *param = new_node("FunctionParam", ND_FUNC_PARAM);
     param->id = id;
+    param->decl_type = type_decl->decl_type;
     if (match("[")) {
         next_token();
         expect("]");
+        param->is_array = true;
     }
     return param;
 }
