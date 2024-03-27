@@ -1,6 +1,6 @@
 CC=gcc
 CFLAGS=-O0 -g
-SRCS=main.c scanner.c parser.c util.c
+SRCS=main.c scanner.c parser.c util.c codegen.c sema.c
 OBJS=$(SRCS:.c=.o)
 TARGET=main
 
