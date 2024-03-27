@@ -138,7 +138,6 @@ static Reg *gen_binop(Node *node) {
     Reg *r0 = new_reg();
     Reg *r1 = gen_expr(node->lhs);
     Reg *r2 = gen_expr(node->rhs);
-    printf("op: %d\n", node->op_type);
     emit(node->op->value, r0, r1, r2);
     return r0;
 }
