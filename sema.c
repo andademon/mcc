@@ -51,14 +51,8 @@ SymbolTable *buildSymbolTable(Program *prog) {
         if (lookup(currentScope, fn->name) != NULL) sema_error("duplicated symbol definition.");
         insert(currentScope, fn->name, NULL);
         SymbolTable *temp_scope = enterScope(currentScope);
-        for (int i = 0;i < fn->node->params->len;i++) {
-            Node *param = fn->node->params->data[i];
-            Var *var = new_var();
-            var->name = param->id->value;
-            var->init = NULL;
-            var->offset = 0;
-            var->is_array = param->is_array;
-            var->type = param->decl_type;
+        for (int i = 0;i < fn->params->len;i++) {
+            Var *var = fn->params->data[i];
             if (lookup(temp_scope, var->name) != NULL) sema_error("duplicated symbol definition.");
             insert(temp_scope, var->name, var);
         }
@@ -108,7 +102,9 @@ void printSymbolTable(SymbolTable *table, int tabs) {
  * 3.遍历ast，检查类型是否合规
 */
 
+static SymbolTable *table;
+
 void sema(Program *prog) {
-    SymbolTable *table = buildSymbolTable(prog);
+    table = buildSymbolTable(prog);
     printSymbolTable(table, 0);
 }

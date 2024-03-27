@@ -239,6 +239,7 @@ Program *new_prog();
 typedef struct {
   char *name;
   Node *node;
+  Vector *params;
   Vector *lvars;
   Vector *stmts;
   Vector *bbs;

@@ -254,6 +254,7 @@ int map_geti(Map *map, char *key, int default_) {
 
 Function *new_func() {
     Function *func = malloc(sizeof(Function));
+    func->params = new_vec();
     func->lvars = new_vec();
     func->bbs = new_vec();
     return func;
@@ -545,6 +546,17 @@ Program *tree_to_prog(Program *prog) {
                     var->offset = 0;
                     vec_push(fn->lvars, var);
                 }
+            }
+        if (func->params->len)
+            for (int i = 0;i < func->params->len;i++) {
+                Node *param = func->params->data[i];
+                Var *var = new_var();
+                var->name = param->id->value;
+                var->init = NULL;
+                var->offset = 0;
+                var->is_array = param->is_array;
+                var->type = param->decl_type;
+                vec_push(fn->params, var);
             }
 
         fn->stmts = func->body->stmts;
