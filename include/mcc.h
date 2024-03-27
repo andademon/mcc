@@ -91,8 +91,8 @@ char *str_pop(char *str);
 
 /* ---parser.c--- */
 
-// AST node
-typedef enum {
+// AST node type
+enum {
     ND_NULL_EXPR, // Do nothing
 
     ND_STMT_LIST, // stmts
@@ -128,7 +128,7 @@ typedef enum {
     ND_IDENT,
     ND_CAST,      // Type cast
     ND_PROGRAM
-} NODE_TYPE;
+};
 
 enum {
     VOID = 0,
@@ -153,6 +153,8 @@ enum {
     OP_NE,        // !=
     OP_LT,        // <
     OP_LE,        // <=
+    OP_LT2,
+    OP_LE2,
     OP_ASSIGN,    // =
     OP_COND,      // ?:
     OP_COMMA,     // ,
@@ -171,6 +173,10 @@ typedef struct Node {
     char *value;
 
     Token *tok;
+
+    // operator
+    int op_type;
+
     // type decl
     int decl_type;
     bool is_array;
@@ -284,6 +290,7 @@ void *lookup(struct SymbolTable *node, char *name);
 void sema_error(char *msg);
 struct SymbolTable *buildSymbolTable(Program *prog);
 void sema(Program *prog);
+void printSymbolTable(SymbolTable *table, int tabs);
 
 // codegen.c
 

@@ -59,7 +59,7 @@ static void expect(char *str);
 static void expect_type(int type);
 static bool match(char *str);
 static bool match_type(int type);
-
+static int get_op_type(char *op);
 
 static Node *program();
 static Node *declaration_list();
@@ -94,8 +94,31 @@ static Vector *argument_list();
 static Node *constant();
 static Node *function_body();
 
+static Map *op_map;
+
 void next_token () {
     current_token = current_token->next;
+}
+
+static void init_op_map() {
+    op_map = new_map();
+    map_puti(op_map, "+", OP_ADD);
+    map_puti(op_map, "-", OP_SUB);
+    map_puti(op_map, "*", OP_MUL);
+    map_puti(op_map, "/", OP_DIV);
+    map_puti(op_map, "%", OP_MOD);
+    map_puti(op_map, "<", OP_LT);
+    map_puti(op_map, "<=", OP_LE);
+    map_puti(op_map, ">", OP_LT2);
+    map_puti(op_map, ">=", OP_LE2);
+    map_puti(op_map, "==", OP_EQ);
+    map_puti(op_map, "!=", OP_NE);
+    map_puti(op_map, "=", OP_ASSIGN);
+}
+
+static int get_op_type(char *op) {
+    if (!op_map) init_op_map();
+    return map_geti(op_map, op, -1);
 }
 
 Program *parse(Token *tokens)
@@ -726,6 +749,7 @@ static Node *assignment_expression() {
             assignmentExpr->lhs = left;
             assignmentExpr->rhs = right;
             assignmentExpr->op = op;
+            assignmentExpr->op_type = OP_ASSIGN;
             return assignmentExpr;
         }
     }
@@ -786,6 +810,7 @@ static Node *conditional_expression() {
             node->lhs = left;
             node->rhs = right;
             node->op = op;
+            node->op_type = get_op_type(op->value);
             return node;
         }
     }
@@ -813,6 +838,7 @@ static Node *additive_expression() {
             left->lhs = left_bak;
             left->rhs = right;
             left->op = op;
+            left->op_type = get_op_type(op->value);
         }
     }
     return left;
@@ -840,6 +866,7 @@ static Node *multiplicative_expression() {
             left->lhs = left_bak;
             left->rhs = right;
             left->op = op;
+            left->op_type = get_op_type(op->value);
         }
     }
     return left;

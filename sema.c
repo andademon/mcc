@@ -88,6 +88,8 @@ void printSymbolTable(SymbolTable *table, int tabs) {
     printf("scopeLevel: %d\n", table->scopeLevel);
     for (int i = 0;i < table->entries->keys->len;i++) {
         printTab(tabs);
+        Var *var = table->entries->vals->data[i];
+        if (!var) continue;
         printf("%s\n", table->entries->keys->data[i]);
     }
     for (int i = 0;i < table->children->len;i++) {
