@@ -18,7 +18,7 @@ static void gen_lvar(Var *var);
 static IR *jmp(BB *bb);
 
 int nlabel = 1;
-int nreg = 1;
+int nreg = 0;
 int clabel = 0;
 
 static int offset = 0;
@@ -30,6 +30,8 @@ static SymbolTable *currentScope;
 static Function *currentFunction; 
 static BB *currentBB;
 
+static Vector *registers;
+
 static int new_label() {
     return nlabel++;
 }
@@ -38,11 +40,28 @@ static int new_constant_label() {
     return clabel++;
 }
 
-static Reg *new_reg() {
+static Reg *new_real_reg() {
     Reg *r = calloc(1, sizeof(Reg));
     r->vn = nreg++;
     r->rn = -1;
+    r->using = false;
     return r;
+}
+
+static Reg *new_reg() {
+    for (int i = 0;i < registers->len;i++) {
+        Reg *r = registers->data[i];
+        if (r->using == false) {
+            r->using = true;
+            return r;
+        }
+    }
+    printf("register allocate error\n");
+    exit(1);
+}
+
+static void kill_reg(Reg *reg) {
+    reg->using = false;
 }
 
 static IR *new_ir() {
@@ -119,7 +138,7 @@ static void gen_lvar(Var *var) {
             && var->init->node_type != ND_CHAR)
     )
         return;
-
+    offset += 4;
     Reg *reg = new_reg();
     var->offset = offset;
     Var *temp_var = lookup(currentScope, var->name);
@@ -136,7 +155,7 @@ static void gen_lvar(Var *var) {
             break;
         }
     }
-    offset += 8;
+    kill_reg(reg);
 }
 
 // 生成二元运算表达式IR
@@ -150,6 +169,10 @@ static Reg *gen_binop(Node *node) {
             printf("sub r%d,r%d,r%d\n", r0->vn, r1->vn, r2->vn);
             Reg *r3 = new_reg();
             printf("seqz r%d,r%d\n", r3->vn, r0->vn);
+
+            kill_reg(r0);
+            kill_reg(r1);
+            kill_reg(r2);
             return r3;
         }
         case OP_NE: {
@@ -158,9 +181,11 @@ static Reg *gen_binop(Node *node) {
             Reg *r2 = gen_expr(node->rhs);
             printf("sub r%d,r%d,r%d\n", r0->vn, r1->vn, r2->vn);
             Reg *r3 = new_reg();
-            Reg *r4 = new_reg();
-            Reg *r5 = new_reg();
             printf("snez r%d,r%d\n", r3->vn, r0->vn);
+
+            kill_reg(r0);
+            kill_reg(r1);
+            kill_reg(r2);
             return r3;
         }
         case OP_LT: {
@@ -168,6 +193,9 @@ static Reg *gen_binop(Node *node) {
             Reg *r1 = gen_expr(node->lhs);
             Reg *r2 = gen_expr(node->rhs);
             printf("slt r%d,r%d,r%d\n", r0->vn, r1->vn, r2->vn);
+
+            kill_reg(r1);
+            kill_reg(r2);
             return r0;
         }
         case OP_LT2: {
@@ -175,6 +203,9 @@ static Reg *gen_binop(Node *node) {
             Reg *r1 = gen_expr(node->lhs);
             Reg *r2 = gen_expr(node->rhs);
             printf("slt r%d,r%d,r%d\n", r0->vn, r2->vn, r1->vn);
+
+            kill_reg(r1);
+            kill_reg(r2);
             return r0;
         }
         case OP_LE: {
@@ -182,12 +213,20 @@ static Reg *gen_binop(Node *node) {
             Reg *r1 = gen_expr(node->lhs);
             Reg *r2 = gen_expr(node->rhs);
             printf("sub r%d,r%d,r%d\n", r0->vn, r1->vn, r2->vn);
+
+            kill_reg(r1);
+            kill_reg(r2);
+
             Reg *r3 = new_reg();
             Reg *r4 = new_reg();
             Reg *r5 = new_reg();
             printf("sltz r%d,r%d\n", r3->vn, r0->vn);
             printf("seqz r%d,r%d\n", r4->vn, r0->vn);
             printf("or r%d,r%d,r%d\n", r5->vn, r3->vn, r4->vn);
+
+            kill_reg(r0);
+            kill_reg(r3);
+            kill_reg(r4);
             return r5;
         }
         case OP_LE2: {
@@ -195,12 +234,20 @@ static Reg *gen_binop(Node *node) {
             Reg *r1 = gen_expr(node->lhs);
             Reg *r2 = gen_expr(node->rhs);
             printf("sub r%d,r%d,r%d\n", r0->vn, r2->vn, r1->vn);
+
+            kill_reg(r1);
+            kill_reg(r2);
+
             Reg *r3 = new_reg();
             Reg *r4 = new_reg();
             Reg *r5 = new_reg();
             printf("sltz r%d,r%d\n", r3->vn, r0->vn);
             printf("seqz r%d,r%d\n", r4->vn, r0->vn);
             printf("or r%d,r%d,r%d\n", r5->vn, r3->vn, r4->vn);
+
+            kill_reg(r0);
+            kill_reg(r3);
+            kill_reg(r4);
             return r5;
         }
         case OP_ADD:
@@ -212,6 +259,9 @@ static Reg *gen_binop(Node *node) {
             Reg *r1 = gen_expr(node->lhs);
             Reg *r2 = gen_expr(node->rhs);
             emit(node->op_type, r0, r1, r2);
+
+            kill_reg(r1);
+            kill_reg(r2);
             return r0;
         }            
         default: {
@@ -235,11 +285,14 @@ static Reg *gen_expr(Node *node) {
             break;
         }
         case ND_STR: {
+            Reg *r0 = new_reg();
+            int clabel = new_constant_label();
             printf(".section    .rodata\n");
-            printf(".LC%d:\n", new_constant_label());
-            printf("\t.string\t%s\n", node->tok->value);
+            printf(".LC%d:\n", clabel);
+            printf("    .string\t%s\n", node->tok->value);
             printf(".section    .text\n");
-            return NULL;
+            printf("lla r%d,.LC%d\n", r0->vn, clabel);
+            return r0;
             break;
         }
         case ND_IDENT: {
@@ -262,6 +315,9 @@ static Reg *gen_expr(Node *node) {
             }
             printf("mv r%d,r%d\n", r0->vn, r1->vn);
             printf("sw r%d,-%d(s0)\n", r0->vn, temp_var->offset);
+
+            kill_reg(r0);
+            kill_reg(r1);
             break;
         }
         case ND_FUNCALL: {
@@ -269,21 +325,14 @@ static Reg *gen_expr(Node *node) {
             // 对于函数参数的处理，如果是立即数，直接li加载，否则（是左值）看arg在哪里保存
             for (int i = 0;i < node->args->len;i++) {
                 Node *param = node->args->data[i];
-                if (param->node_type == ND_STR) {
-                    int clabel = new_constant_label();
-                    printf(".section    .rodata\n");
-                    printf(".LC%d:\n", clabel);
-                    printf("    .string\t%s\n", param->tok->value);
-                    printf(".section    .text\n");
-                    printf("lla a%d,.LC%d\n", i, clabel);
-                    continue;
-                }
                 args[i] = gen_expr(param);
+            }
+            for (int i = 0;i < node->args->len;i++) {
                 printf("mv a%d,r%d\n", i, args[i]->vn);
             }
             Reg *r0 = new_reg();
             printf("call %s\n", node->id->value);
-            printf("mv r%d, a0\n", r0->vn);
+            printf("mv r%d,a0\n", r0->vn);
             return r0;
             break;
         }
@@ -459,7 +508,8 @@ static void gen_stmt(Node *node) {
             break;
         }
         case ND_EXPR_STMT: {
-            gen_expr(node->body);
+            Reg *reg = gen_expr(node->body);
+            kill_reg(reg);
             break;
         }
         case ND_RETURN_STMT: {
@@ -467,6 +517,7 @@ static void gen_stmt(Node *node) {
             if (node->body == NULL) return;
             Reg *reg = gen_expr(node->body);
             printf("mv a0,r%d\n",reg->vn);
+            kill_reg(reg);
             break;
         }
     }
@@ -480,6 +531,7 @@ static void gen_param(Var *var, int i) {
     temp_var->offset = offset;
     printf("mv r%d,a%d\n", r0->vn, i);
     printf("sw r%d,-%d(s0)\n", r0->vn, offset);
+    kill_reg(r0);
 }
 
 int compute_var_size(Var *var) {
@@ -539,6 +591,12 @@ void codegen(Program *prog) {
     if (!table) {
         table = buildSymbolTable(prog);
         currentScope = table;
+    }
+    if (!registers) {
+        registers = new_vec();
+        for (int i = 0;i <= 6;i++) {
+            vec_push(registers, new_real_reg());
+        }
     }
     printf(".section	.rodata\n");
     for (int i = 0;i < prog->gvars->len;i++) {

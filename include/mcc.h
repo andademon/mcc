@@ -327,6 +327,8 @@ enum {
 typedef struct {
     int vn; // virtual register number
     int rn; // real register number
+
+    bool using;
 } Reg;
 
 /* 基本块 */
