@@ -21,7 +21,7 @@ int nlabel = 1;
 int nreg = 0;
 int clabel = 0;
 
-static int offset = 0;
+int offset = 0;
 
 static SymbolTable *table;
 
@@ -145,13 +145,13 @@ static void gen_lvar(Var *var) {
     temp_var->offset = offset;
     switch(var->type) {
         case INT: {
-            printf("li r%d,%s\n", reg->vn, var->init->tok->value);
-            printf("sw r%d,-%d(s0)\n", reg->vn, offset);
+            printf("li t%d,%s\n", reg->vn, var->init->tok->value);
+            printf("sw t%d,-%d(s0)\n", reg->vn, offset);
             break;
         }
         case CHAR: {
-            printf("li r%d,%d\n", reg->vn, (int)var->init->tok->value[0]);
-            printf("sb r%d,-%d(s0)\n", reg->vn, offset);
+            printf("li t%d,%d\n", reg->vn, (int)var->init->tok->value[0]);
+            printf("sb t%d,-%d(s0)\n", reg->vn, offset);
             break;
         }
     }
@@ -166,9 +166,9 @@ static Reg *gen_binop(Node *node) {
             Reg *r0 = new_reg();
             Reg *r1 = gen_expr(node->lhs);
             Reg *r2 = gen_expr(node->rhs);
-            printf("sub r%d,r%d,r%d\n", r0->vn, r1->vn, r2->vn);
+            printf("sub t%d,t%d,t%d\n", r0->vn, r1->vn, r2->vn);
             Reg *r3 = new_reg();
-            printf("seqz r%d,r%d\n", r3->vn, r0->vn);
+            printf("seqz t%d,t%d\n", r3->vn, r0->vn);
 
             kill_reg(r0);
             kill_reg(r1);
@@ -179,9 +179,9 @@ static Reg *gen_binop(Node *node) {
             Reg *r0 = new_reg();
             Reg *r1 = gen_expr(node->lhs);
             Reg *r2 = gen_expr(node->rhs);
-            printf("sub r%d,r%d,r%d\n", r0->vn, r1->vn, r2->vn);
+            printf("sub t%d,t%d,t%d\n", r0->vn, r1->vn, r2->vn);
             Reg *r3 = new_reg();
-            printf("snez r%d,r%d\n", r3->vn, r0->vn);
+            printf("snez t%d,t%d\n", r3->vn, r0->vn);
 
             kill_reg(r0);
             kill_reg(r1);
@@ -192,7 +192,7 @@ static Reg *gen_binop(Node *node) {
             Reg *r0 = new_reg();
             Reg *r1 = gen_expr(node->lhs);
             Reg *r2 = gen_expr(node->rhs);
-            printf("slt r%d,r%d,r%d\n", r0->vn, r1->vn, r2->vn);
+            printf("slt t%d,t%d,t%d\n", r0->vn, r1->vn, r2->vn);
 
             kill_reg(r1);
             kill_reg(r2);
@@ -202,7 +202,7 @@ static Reg *gen_binop(Node *node) {
             Reg *r0 = new_reg();
             Reg *r1 = gen_expr(node->lhs);
             Reg *r2 = gen_expr(node->rhs);
-            printf("slt r%d,r%d,r%d\n", r0->vn, r2->vn, r1->vn);
+            printf("slt t%d,t%d,t%d\n", r0->vn, r2->vn, r1->vn);
 
             kill_reg(r1);
             kill_reg(r2);
@@ -212,7 +212,7 @@ static Reg *gen_binop(Node *node) {
             Reg *r0 = new_reg();
             Reg *r1 = gen_expr(node->lhs);
             Reg *r2 = gen_expr(node->rhs);
-            printf("sub r%d,r%d,r%d\n", r0->vn, r1->vn, r2->vn);
+            printf("sub t%d,t%d,t%d\n", r0->vn, r1->vn, r2->vn);
 
             kill_reg(r1);
             kill_reg(r2);
@@ -220,9 +220,9 @@ static Reg *gen_binop(Node *node) {
             Reg *r3 = new_reg();
             Reg *r4 = new_reg();
             Reg *r5 = new_reg();
-            printf("sltz r%d,r%d\n", r3->vn, r0->vn);
-            printf("seqz r%d,r%d\n", r4->vn, r0->vn);
-            printf("or r%d,r%d,r%d\n", r5->vn, r3->vn, r4->vn);
+            printf("sltz t%d,t%d\n", r3->vn, r0->vn);
+            printf("seqz t%d,t%d\n", r4->vn, r0->vn);
+            printf("or t%d,t%d,t%d\n", r5->vn, r3->vn, r4->vn);
 
             kill_reg(r0);
             kill_reg(r3);
@@ -233,7 +233,7 @@ static Reg *gen_binop(Node *node) {
             Reg *r0 = new_reg();
             Reg *r1 = gen_expr(node->lhs);
             Reg *r2 = gen_expr(node->rhs);
-            printf("sub r%d,r%d,r%d\n", r0->vn, r2->vn, r1->vn);
+            printf("sub t%d,t%d,t%d\n", r0->vn, r2->vn, r1->vn);
 
             kill_reg(r1);
             kill_reg(r2);
@@ -241,9 +241,9 @@ static Reg *gen_binop(Node *node) {
             Reg *r3 = new_reg();
             Reg *r4 = new_reg();
             Reg *r5 = new_reg();
-            printf("sltz r%d,r%d\n", r3->vn, r0->vn);
-            printf("seqz r%d,r%d\n", r4->vn, r0->vn);
-            printf("or r%d,r%d,r%d\n", r5->vn, r3->vn, r4->vn);
+            printf("sltz t%d,t%d\n", r3->vn, r0->vn);
+            printf("seqz t%d,t%d\n", r4->vn, r0->vn);
+            printf("or t%d,t%d,t%d\n", r5->vn, r3->vn, r4->vn);
 
             kill_reg(r0);
             kill_reg(r3);
@@ -280,7 +280,7 @@ static Reg *gen_expr(Node *node) {
             break;
         case ND_NUM: {
             Reg *r0 = new_reg();
-            printf("li r%d,%s\n", r0->vn, node->tok->value);
+            printf("li t%d,%s\n", r0->vn, node->tok->value);
             return r0;
             break;
         }
@@ -291,7 +291,7 @@ static Reg *gen_expr(Node *node) {
             printf(".LC%d:\n", clabel);
             printf("    .string\t%s\n", node->tok->value);
             printf(".section    .text\n");
-            printf("lla r%d,.LC%d\n", r0->vn, clabel);
+            printf("lla t%d,.LC%d\n", r0->vn, clabel);
             return r0;
             break;
         }
@@ -301,7 +301,7 @@ static Reg *gen_expr(Node *node) {
                 exit(1);
             }
             Reg *r0 = new_reg();
-            printf("lw r%d,-%d(s0)\n", r0->vn, v->offset);
+            printf("lw t%d,-%d(s0)\n", r0->vn, v->offset);
             return r0;
             break;
         }
@@ -313,8 +313,8 @@ static Reg *gen_expr(Node *node) {
                 offset += 4;
                 temp_var->offset = offset;
             }
-            printf("mv r%d,r%d\n", r0->vn, r1->vn);
-            printf("sw r%d,-%d(s0)\n", r0->vn, temp_var->offset);
+            printf("mv t%d,t%d\n", r0->vn, r1->vn);
+            printf("sw t%d,-%d(s0)\n", r0->vn, temp_var->offset);
 
             kill_reg(r0);
             kill_reg(r1);
@@ -328,11 +328,11 @@ static Reg *gen_expr(Node *node) {
                 args[i] = gen_expr(param);
             }
             for (int i = 0;i < node->args->len;i++) {
-                printf("mv a%d,r%d\n", i, args[i]->vn);
+                printf("mv a%d,t%d\n", i, args[i]->vn);
             }
             Reg *r0 = new_reg();
             printf("call %s\n", node->id->value);
-            printf("mv r%d,a0\n", r0->vn);
+            printf("mv t%d,a0\n", r0->vn);
             return r0;
             break;
         }
@@ -355,7 +355,7 @@ char *to_str(int op) {
 }
 
 static void emit(int op, Reg *r0, Reg *r1, Reg *r2) {
-    printf("%s r%d,r%d,r%d\n", to_str(op), r0->vn, r1->vn, r2->vn);
+    printf("%s t%d,t%d,t%d\n", to_str(op), r0->vn, r1->vn, r2->vn);
     IR *ir = new_ir();
     ir->op = op;
     ir->r0 = r0;
@@ -388,17 +388,17 @@ static void gen_lval(Node *node) {
     // offset += 4;
     Var *var = lookup(currentScope, node->id->value);
     if (var->offset != 0) {
-        // printf("lw r%d,-%d(s0)\n",);
+        // printf("lw t%d,-%d(s0)\n",);
     }
     var->offset = offset;
     Reg *r0 = new_reg();
-    // printf("mv r%d,a%d\n", r0->vn, i);
-    // printf("sw r%d,-%d(s0)\n", r0->vn, offset);
+    // printf("mv t%d,a%d\n", r0->vn, i);
+    // printf("sw t%d,-%d(s0)\n", r0->vn, offset);
 }
 
 // 分支跳转IR,绑定真分支与跳转分支
 static IR *br(Reg *r, BB *then, BB *els) {
-    printf("beq r%d,zero,.L%d\n", r->vn, els->label);
+    printf("beq t%d,zero,.L%d\n", r->vn, els->label);
     jmp(then);
     IR *ir = new_ir();
     ir->r2 = r;
@@ -516,7 +516,7 @@ static void gen_stmt(Node *node) {
             // 如果return语句不含返回值，则直接return,否则将计算返回值并将返回值移动至返回值寄存器
             if (node->body == NULL) return;
             Reg *reg = gen_expr(node->body);
-            printf("mv a0,r%d\n",reg->vn);
+            printf("mv a0,t%d\n",reg->vn);
             kill_reg(reg);
             break;
         }
@@ -529,25 +529,29 @@ static void gen_param(Var *var, int i) {
     var->offset = offset;
     Var *temp_var = lookup(currentScope, var->name);
     temp_var->offset = offset;
-    printf("mv r%d,a%d\n", r0->vn, i);
-    printf("sw r%d,-%d(s0)\n", r0->vn, offset);
+    printf("mv t%d,a%d\n", r0->vn, i);
+    printf("sw t%d,-%d(s0)\n", r0->vn, offset);
     kill_reg(r0);
 }
 
 int compute_var_size(Var *var) {
     int size = get_size(var->type);
-    size = (size < 8) ? 8 :size;
+    size = (size < 4) ? 4 :size;
     if (var->is_array) return size * var->len;
     return size;
 }
 
 int compute_function_stack_size(Function *func) {    
-    int count_size = 0;
+    int count_size = 16; // 预留16byte空间存s0和ra
+    count_size += (8 * 7); // 预留保存寄存器的值
     for (int i = 0;i < func->lvars->len;i++) {
         Var *var = func->lvars->data[i];
         count_size += compute_var_size(var);
     }
-    return count_size + 32;
+    if (count_size % 16 != 0) {
+        count_size = ((count_size / 16) + 1) * 16;
+    }
+    return count_size;
 }
 
 void emit_data(Var *var) {
@@ -567,6 +571,16 @@ void emit_code(Function *fn) {
     printf("sd      s0,%d(sp)\n", stack_size - 16);
     printf("addi    s0,sp,%d\n", stack_size);
 
+    printf("sd      t0,-%d(s0)\n", 16 + 8 * 1);
+    printf("sd      t1,-%d(s0)\n", 16 + 8 * 2);
+    printf("sd      t2,-%d(s0)\n", 16 + 8 * 3);
+    printf("sd      t3,-%d(s0)\n", 16 + 8 * 4);
+    printf("sd      t4,-%d(s0)\n", 16 + 8 * 5);
+    printf("sd      t5,-%d(s0)\n", 16 + 8 * 6);
+    printf("sd      t6,-%d(s0)\n", 16 + 8 * 7);
+
+    offset += 56;
+
     puts("");
 
     for (int i = 0;i < fn->params->len;i++) {
@@ -581,10 +595,25 @@ void emit_code(Function *fn) {
 
     puts("");
 
+    printf("ld      t0,-%d(s0)\n", 16 + 8 * 1);
+    printf("ld      t1,-%d(s0)\n", 16 + 8 * 2);
+    printf("ld      t2,-%d(s0)\n", 16 + 8 * 3);
+    printf("ld      t3,-%d(s0)\n", 16 + 8 * 4);
+    printf("ld      t4,-%d(s0)\n", 16 + 8 * 5);
+    printf("ld      t5,-%d(s0)\n", 16 + 8 * 6);
+    printf("ld      t6,-%d(s0)\n", 16 + 8 * 7);
+
     printf("ld      ra,%d(sp)\n", stack_size - 8);
     printf("ld      s0,%d(sp)\n", stack_size - 16);
     printf("addi    sp,sp,%d\n", stack_size);
     printf("jr      ra\n");
+}
+
+static void reset_registers(Vector *regs) {
+    for (int i = 0;i < regs->len;i++) {
+        Reg *r = regs->data[i];
+        r->using = false;
+    }
 }
 
 void codegen(Program *prog) {
@@ -597,7 +626,7 @@ void codegen(Program *prog) {
         for (int i = 0;i <= 6;i++) {
             vec_push(registers, new_real_reg());
         }
-    }
+    } 
     printf(".section	.rodata\n");
     for (int i = 0;i < prog->gvars->len;i++) {
         emit_data(prog->gvars->data[i]);
@@ -606,6 +635,7 @@ void codegen(Program *prog) {
     printf(".section	.text\n");
     puts("");
     for (int i = 0;i < prog->funcs->len;i++) {
+        reset_registers(registers);
         Function *fn = prog->funcs->data[i];
         currentFunction = fn;
         currentScope = currentScope->children->data[i];

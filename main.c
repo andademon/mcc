@@ -4,7 +4,9 @@ static Token *head;
 
 int main(int argc, char *argv[])
 {
-    char *str = readFile("demo.c");
+    char *str = readFile("test/demo.c");
+    // char *str = readFile("test/hello.c");
+    // char *str = readFile("test/fibonacci.c");
     printf("%s\n", str);
 
     printf("---Lexer---\n");
@@ -24,17 +26,5 @@ int main(int argc, char *argv[])
     printf("---Codegen---\n");
     codegen(prog);
 
-    // codegen(prog);
-    // codegen测试
-    // 测试全局变量
-    // printf("---test gvars---\n");
-    // for (int i = 0;i < prog->gvars->len;i++) {
-    //     codegen_test(prog->gvars->data[i]);
-    // }
-
-    // 测试局部变量
-    // printf("---test lvars---\n");
-    // Node *func1 = prog->funcs->data[0];
-    // codegen_test_function(func1);
     return 0;
 }
