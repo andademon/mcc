@@ -441,12 +441,17 @@ static void gen_stmt(Node *node) {
 
             currentBB = test;
             printf(".L%d:\n", currentBB->label);
-            br(gen_expr(node->test), body, break_);
+            Reg *test_reg = gen_expr(node->test);
+            br(test_reg, body, break_);
+            kill_reg(test_reg);
 
             currentBB = body;
             printf(".L%d:\n", currentBB->label);
-            gen_expr(node->body);
+            gen_stmt(node->body);
             jmp(test);
+
+            currentBB = break_;
+            printf(".L%d:\n", currentBB->label);
 
             break;
         }
@@ -461,26 +466,33 @@ static void gen_stmt(Node *node) {
             currentBB = init;
             printf(".L%d:\n", currentBB->label);
             if (node->init) {
-                gen_expr(node->init);
+                Reg *init_reg = gen_expr(node->init);
                 jmp(test);
+                kill_reg(init_reg);
             }
 
             currentBB = test;
             printf(".L%d:\n", currentBB->label);
             if (node->test) {
-                Reg *r = gen_expr(node->test);
-                br(r, body, break_);
+                Reg *test_reg = gen_expr(node->test);
+                br(test_reg, body, break_);
+                kill_reg(test_reg);
             }
 
             currentBB = body;
             printf(".L%d:\n", currentBB->label);
             gen_stmt(node->body);
 
-            if (node->update)
-                gen_expr(node->update);
+            if (node->update) {
+                Reg *update_reg = gen_expr(node->update);
+                kill_reg(update_reg);
+            }
 
             // 这里body的出口是jmp test吗？有点不确定，待会验证            
             jmp(test);
+
+            currentBB = break_;
+            printf(".L%d:\n", currentBB->label);
             break;
         }
         case ND_IF_STMT: {
@@ -491,7 +503,9 @@ static void gen_stmt(Node *node) {
 
             currentBB = test;
             printf(".L%d:\n", currentBB->label);
-            br(gen_expr(node->test), then, els);
+            Reg *test_reg = gen_expr(node->test);
+            br(test_reg, then, els);
+            kill_reg(test_reg);
 
             currentBB = then;
             printf(".L%d:\n", currentBB->label);
