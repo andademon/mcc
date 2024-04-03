@@ -4,8 +4,7 @@
 
 void emit_data(Var *var);
 void emit_code(Function *fn);
-static void emit(char *op, Reg *r0, Reg *r1, Reg *r2);
-static void emit2(char *op, Reg *r0, Reg *r2);
+static void emit(int op, Reg *r0, Reg *r1, Reg *r2);
 
 static Reg *new_reg();
 static BB *new_bb();
@@ -16,9 +15,11 @@ static Reg *gen_expr(Node *node);
 // 全局变量放静态数据段中，局部变量则先将数据加载到寄存器中，然后用内存保存
 static void gen_gvar(Var *var);
 static void gen_lvar(Var *var);
+static IR *jmp(BB *bb);
 
 int nlabel = 1;
 int nreg = 1;
+int clabel = 0;
 
 static int offset = 0;
 
@@ -26,13 +27,15 @@ static SymbolTable *table;
 
 static SymbolTable *currentScope;
 
-static Vector *irs;
-static BB *out;
-
-Map *op_map;
+static Function *currentFunction; 
+static BB *currentBB;
 
 static int new_label() {
     return nlabel++;
+}
+
+static int new_constant_label() {
+    return clabel++;
 }
 
 static Reg *new_reg() {
@@ -43,7 +46,9 @@ static Reg *new_reg() {
 }
 
 static IR *new_ir() {
-    return (IR *)calloc(1, sizeof(IR));
+    IR *ir = (IR *)calloc(1, sizeof(IR));
+    if (currentBB) vec_push(currentBB->ir, ir);
+    return ir;
 }
 
 static BB *new_bb() {
@@ -53,6 +58,7 @@ static BB *new_bb() {
     bb->ir = new_vec();
     bb->in_regs = new_vec();
     bb->out_regs = new_vec();
+    if (currentFunction) vec_push(currentFunction->bbs, bb);
     return bb;
 }
 
@@ -135,16 +141,89 @@ static void gen_lvar(Var *var) {
 
 // 生成二元运算表达式IR
 static Reg *gen_binop(Node *node) {
-    Reg *r0 = new_reg();
-    Reg *r1 = gen_expr(node->lhs);
-    Reg *r2 = gen_expr(node->rhs);
-    emit(node->op->value, r0, r1, r2);
-    return r0;
+    if (!node) return NULL;
+    switch(node->op_type) {
+        case OP_EQ: {
+            Reg *r0 = new_reg();
+            Reg *r1 = gen_expr(node->lhs);
+            Reg *r2 = gen_expr(node->rhs);
+            printf("sub r%d,r%d,r%d\n", r0->vn, r1->vn, r2->vn);
+            Reg *r3 = new_reg();
+            printf("seqz r%d,r%d\n", r3->vn, r0->vn);
+            return r3;
+        }
+        case OP_NE: {
+            Reg *r0 = new_reg();
+            Reg *r1 = gen_expr(node->lhs);
+            Reg *r2 = gen_expr(node->rhs);
+            printf("sub r%d,r%d,r%d\n", r0->vn, r1->vn, r2->vn);
+            Reg *r3 = new_reg();
+            Reg *r4 = new_reg();
+            Reg *r5 = new_reg();
+            printf("snez r%d,r%d\n", r3->vn, r0->vn);
+            return r3;
+        }
+        case OP_LT: {
+            Reg *r0 = new_reg();
+            Reg *r1 = gen_expr(node->lhs);
+            Reg *r2 = gen_expr(node->rhs);
+            printf("slt r%d,r%d,r%d\n", r0->vn, r1->vn, r2->vn);
+            return r0;
+        }
+        case OP_LT2: {
+            Reg *r0 = new_reg();
+            Reg *r1 = gen_expr(node->lhs);
+            Reg *r2 = gen_expr(node->rhs);
+            printf("slt r%d,r%d,r%d\n", r0->vn, r2->vn, r1->vn);
+            return r0;
+        }
+        case OP_LE: {
+            Reg *r0 = new_reg();
+            Reg *r1 = gen_expr(node->lhs);
+            Reg *r2 = gen_expr(node->rhs);
+            printf("sub r%d,r%d,r%d\n", r0->vn, r1->vn, r2->vn);
+            Reg *r3 = new_reg();
+            Reg *r4 = new_reg();
+            Reg *r5 = new_reg();
+            printf("sltz r%d,r%d\n", r3->vn, r0->vn);
+            printf("seqz r%d,r%d\n", r4->vn, r0->vn);
+            printf("or r%d,r%d,r%d\n", r5->vn, r3->vn, r4->vn);
+            return r5;
+        }
+        case OP_LE2: {
+            Reg *r0 = new_reg();
+            Reg *r1 = gen_expr(node->lhs);
+            Reg *r2 = gen_expr(node->rhs);
+            printf("sub r%d,r%d,r%d\n", r0->vn, r2->vn, r1->vn);
+            Reg *r3 = new_reg();
+            Reg *r4 = new_reg();
+            Reg *r5 = new_reg();
+            printf("sltz r%d,r%d\n", r3->vn, r0->vn);
+            printf("seqz r%d,r%d\n", r4->vn, r0->vn);
+            printf("or r%d,r%d,r%d\n", r5->vn, r3->vn, r4->vn);
+            return r5;
+        }
+        case OP_ADD:
+        case OP_SUB:
+        case OP_MUL:
+        case OP_DIV: {
+            // 算术运算
+            Reg *r0 = new_reg();
+            Reg *r1 = gen_expr(node->lhs);
+            Reg *r2 = gen_expr(node->rhs);
+            emit(node->op_type, r0, r1, r2);
+            return r0;
+        }            
+        default: {
+            printf("unknown op type: %d\n", node->op_type);
+            exit(1);
+        }
+    }
 }
 
 // 生成expr IR
 static Reg *gen_expr(Node *node) {
-    // if (!node) return NULL;
+    if (!node) return NULL;
     switch (node->node_type) {
         case ND_BINARY_EXPR:
             return gen_binop(node);
@@ -153,6 +232,14 @@ static Reg *gen_expr(Node *node) {
             Reg *r0 = new_reg();
             printf("li r%d,%s\n", r0->vn, node->tok->value);
             return r0;
+            break;
+        }
+        case ND_STR: {
+            printf(".section    .rodata\n");
+            printf(".LC%d:\n", new_constant_label());
+            printf("\t.string\t%s\n", node->tok->value);
+            printf(".section    .text\n");
+            return NULL;
             break;
         }
         case ND_IDENT: {
@@ -168,14 +255,30 @@ static Reg *gen_expr(Node *node) {
         case ND_ASSIGN_EXPR: {
             Reg *r0 = new_reg();
             Reg *r1 = gen_expr(node->rhs);
+            Var *temp_var = lookup(currentScope, node->lhs->id->value);
+            if (temp_var->offset == 0) {
+                offset += 4;
+                temp_var->offset = offset;
+            }
             printf("mv r%d,r%d\n", r0->vn, r1->vn);
+            printf("sw r%d,-%d(s0)\n", r0->vn, temp_var->offset);
             break;
         }
         case ND_FUNCALL: {
             Reg *args[6];
             // 对于函数参数的处理，如果是立即数，直接li加载，否则（是左值）看arg在哪里保存
             for (int i = 0;i < node->args->len;i++) {
-                args[i] = gen_expr(node->args->data[i]);
+                Node *param = node->args->data[i];
+                if (param->node_type == ND_STR) {
+                    int clabel = new_constant_label();
+                    printf(".section    .rodata\n");
+                    printf(".LC%d:\n", clabel);
+                    printf("    .string\t%s\n", param->tok->value);
+                    printf(".section    .text\n");
+                    printf("lla a%d,.LC%d\n", i, clabel);
+                    continue;
+                }
+                args[i] = gen_expr(param);
                 printf("mv a%d,r%d\n", i, args[i]->vn);
             }
             Reg *r0 = new_reg();
@@ -187,24 +290,28 @@ static Reg *gen_expr(Node *node) {
     }
 }
 
-char *to_str(char *op) {
-    map_put(op_map, "+", "add");
-    map_put(op_map, "-", "sub");
-    map_put(op_map, "*", "mul");
-    map_put(op_map, "/", "div");
-    // map_put(op_map, ">", "slt");
-    // map_put(op_map, "<", "slt");
-    // map_put(op_map, ">=", "");
-    // map_put(op_map, "<=", "");
-    // map_put(op_map, "==", "");
-    // map_put(op_map, "!=", "");
-    char* rs = map_get(op_map, op);
-    if (rs == NULL) return op;
-    return rs;
+char *to_str(int op) {
+    switch (op) {
+        case OP_ADD: return ("add");
+        case OP_SUB: return ("sub");
+        case OP_MUL: return ("mul");
+        case OP_DIV: return ("div");
+        case OP_EQ: return ("");
+        case OP_NE: return ("");
+        case OP_LT: return ("");
+        case OP_LE: return ("");
+        default:
+            return "NULL";
+    }
 }
 
-static void emit(char *op, Reg *r0, Reg *r1, Reg *r2) {
+static void emit(int op, Reg *r0, Reg *r1, Reg *r2) {
     printf("%s r%d,r%d,r%d\n", to_str(op), r0->vn, r1->vn, r2->vn);
+    IR *ir = new_ir();
+    ir->op = op;
+    ir->r0 = r0;
+    ir->r1 = r1;
+    ir->r2 = r2;
 }
 
 // 对于每一个左值，符号表中记录该变量在内存中的偏移量
@@ -228,13 +335,22 @@ static void emit(char *op, Reg *r0, Reg *r1, Reg *r2) {
 //
 // This function evaluates a given node as an lvalue.
 static void gen_lval(Node *node) {
-
+    if (node->node_type != ND_IDENT) return;
+    // offset += 4;
+    Var *var = lookup(currentScope, node->id->value);
+    if (var->offset != 0) {
+        // printf("lw r%d,-%d(s0)\n",);
+    }
+    var->offset = offset;
+    Reg *r0 = new_reg();
+    // printf("mv r%d,a%d\n", r0->vn, i);
+    // printf("sw r%d,-%d(s0)\n", r0->vn, offset);
 }
 
-// 分支IR,绑定真分支与跳转分支
+// 分支跳转IR,绑定真分支与跳转分支
 static IR *br(Reg *r, BB *then, BB *els) {
     printf("beq r%d,zero,.L%d\n", r->vn, els->label);
-    printf("j %d\n", then->label);
+    jmp(then);
     IR *ir = new_ir();
     ir->r2 = r;
     ir->bb1 = then;
@@ -246,6 +362,7 @@ static IR *br(Reg *r, BB *then, BB *els) {
 static IR *jmp(BB *bb) {
     printf("j .L%d\n", bb->label);
     IR *ir = new_ir();
+    ir->op = IR_J;
     ir->bb1 = bb;
     return ir;
 }
@@ -255,66 +372,90 @@ static IR *jmp(BB *bb) {
 // 那现在离开basic block怎么生成代码？
 // 在该生成basic block的地方顺序打印ir,生成basic block前先生成该块的前置块和后置块，然后basic block从入口到出口顺序执行
 static void gen_stmt(Node *node) {
+    if (node == NULL) return;
     switch (node->node_type) {
         case ND_BLOCK: {
+            // block_stmt直接生成一个新的basic block,basic block中依次存放所有子stmt的ir
             BB *body = new_bb();
+            currentBB = body;
             for (int i = 0;i < node->stmts->len;i++) {
                 gen_stmt(node->stmts->data[i]);
             }
             break;
         }
         case ND_WHILE_STMT: {
+            // 对于while stmt,将其分成两个基本块：test bb,body bb,但是还涉及到一个去向 bb
+            // 如何处理去向bb,我的想法是顺序生成bb,while stmt的去向bb就是下一个bb;
             BB *test = new_bb();
-            BB *body = new_bb(); // 
+            BB *body = new_bb(); // while_stmt的主体
             BB *break_ = new_bb(); // while_stmt break后的去处
+
+            currentBB = test;
+            printf(".L%d:\n", currentBB->label);
             br(gen_expr(node->test), body, break_);
+
+            currentBB = body;
+            printf(".L%d:\n", currentBB->label);
             gen_expr(node->body);
-            // br(gen_expr())
+            jmp(test);
+
             break;
         }
         case ND_FOR_STMT: {
+            // 对于for stmt,和while一样分成两个主要basic block,test bb, body && update bb,以及去向bb
+            // for stmt的开头还需要一个init bb,这样for stmt比while stmt多一个bb,应该是三个bb
+            BB *init = new_bb();
             BB *body = new_bb();
             BB *test = new_bb();
             BB *break_ = new_bb();
-            if (node->init) 
-                gen_stmt(node->init);
-            jmp(test);
-            out = test;
+            
+            currentBB = init;
+            printf(".L%d:\n", currentBB->label);
+            if (node->init) {
+                gen_expr(node->init);
+                jmp(test);
+            }
+
+            currentBB = test;
+            printf(".L%d:\n", currentBB->label);
             if (node->test) {
                 Reg *r = gen_expr(node->test);
                 br(r, body, break_);
-            } else {
-                jmp(body);
             }
 
-            out = body;
+            currentBB = body;
+            printf(".L%d:\n", currentBB->label);
             gen_stmt(node->body);
 
             if (node->update)
                 gen_expr(node->update);
-            gen_expr(node->update);
-            
+
+            // 这里body的出口是jmp test吗？有点不确定，待会验证            
             jmp(test);
             break;
         }
         case ND_IF_STMT: {
+            BB *test = new_bb();
             BB *then = new_bb();
             BB *els = new_bb();
             BB *last = new_bb();
 
+            currentBB = test;
+            printf(".L%d:\n", currentBB->label);
             br(gen_expr(node->test), then, els);
 
-            out = then;
+            currentBB = then;
+            printf(".L%d:\n", currentBB->label);
             gen_stmt(node->consequent);
-
             jmp(last);
 
-            out = els;
-            if (node->alternative)
-                gen_stmt(node->alternative);
+            currentBB = els;
+            printf(".L%d:\n", currentBB->label);
+            gen_stmt(node->alternative);
             jmp(last);
 
-            out = last;
+            currentBB = last;
+            printf(".L%d:\n", currentBB->label);
             break;
         }
         case ND_EXPR_STMT: {
@@ -332,13 +473,13 @@ static void gen_stmt(Node *node) {
 }
 
 static void gen_param(Var *var, int i) {
+    offset += 4;
     Reg *r0 = new_reg();
     var->offset = offset;
     Var *temp_var = lookup(currentScope, var->name);
     temp_var->offset = offset;
     printf("mv r%d,a%d\n", r0->vn, i);
     printf("sw r%d,-%d(s0)\n", r0->vn, offset);
-    offset += 8;
 }
 
 int compute_var_size(Var *var) {
@@ -365,9 +506,9 @@ void emit_code(Function *fn) {
     // 函数代码生成前计算函数栈需要多少空间
     int stack_size = compute_function_stack_size(fn);
 
-    offset = 0;
+    offset = 16;
 
-    printf(".%s\n", fn->name);
+    printf("%s:\n", fn->name);
 
     printf("addi    sp,sp,-%d\n", stack_size);
     printf("sd      ra,%d(sp)\n", stack_size - 8);
@@ -395,17 +536,9 @@ void emit_code(Function *fn) {
 }
 
 void codegen(Program *prog) {
-    if (!irs) irs = new_vec();
     if (!table) {
         table = buildSymbolTable(prog);
         currentScope = table;
-    }
-    if (!op_map) {
-        op_map = new_map();
-        map_put(op_map, "+", "add");
-        map_put(op_map, "-", "sub");
-        map_put(op_map, "*", "mul");
-        map_put(op_map, "/", "div");
     }
     printf(".section	.rodata\n");
     for (int i = 0;i < prog->gvars->len;i++) {
@@ -416,9 +549,11 @@ void codegen(Program *prog) {
     puts("");
     for (int i = 0;i < prog->funcs->len;i++) {
         Function *fn = prog->funcs->data[i];
+        currentFunction = fn;
+        currentScope = currentScope->children->data[i];
+
         printf(".globl	%s\n", fn->name);
         printf(".type	%s, @function\n", fn->name);
-        currentScope = currentScope->children->data[i];
         emit_code(fn);
         puts("");
         currentScope = exitScope(currentScope);

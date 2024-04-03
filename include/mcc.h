@@ -138,7 +138,7 @@ enum {
 };
 
 enum {
-    OP_ADD = 0,       // +
+    OP_ADD = 0,   // +
     OP_SUB,       // -
     OP_MUL,       // *
     OP_DIV,       // /
@@ -153,8 +153,8 @@ enum {
     OP_NE,        // !=
     OP_LT,        // <
     OP_LE,        // <=
-    OP_LT2,
-    OP_LE2,
+    OP_LT2,       // >
+    OP_LE2,       // >=
     OP_ASSIGN,    // =
     OP_COND,      // ?:
     OP_COMMA,     // ,
@@ -296,6 +296,8 @@ void printSymbolTable(SymbolTable *table, int tabs);
 
 void codegen(Program *prog);
 
+/* IR类型 */
+
 enum {
     IR_ADD = 1,
     IR_ADDI,
@@ -316,6 +318,8 @@ enum {
     IR_ANDI,
 
     IR_RET,
+    IR_J,
+    IR_JR,
 };
 
 /* 寄存器 */
