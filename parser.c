@@ -869,6 +869,7 @@ static Node *variable() {
 static Node *conditional_expression() {
     Node *expr = logical_or_expression();
     if (match("?")) {
+        next_token();
         Node *consequent = expression();
         expect(":");
         Node *alternative = conditional_expression();
