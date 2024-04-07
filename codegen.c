@@ -162,7 +162,7 @@ static void gen_lvar(Var *var) {
     kill_reg(reg);
 }
 
-// 生成二元运算表达式IR
+// 生成二元运算表达式IR，返回保存表达式结果的寄存器
 static Reg *gen_binop(Node *node) {
     if (!node) return NULL;
     switch(node->op_type) {
@@ -170,89 +170,255 @@ static Reg *gen_binop(Node *node) {
             Reg *r0 = new_reg();
             Reg *r1 = gen_expr(node->lhs);
             Reg *r2 = gen_expr(node->rhs);
-            printf("sub t%d,t%d,t%d\n", r0->vn, r1->vn, r2->vn);
-            Reg *r3 = new_reg();
-            printf("seqz t%d,t%d\n", r3->vn, r0->vn);
 
-            kill_reg(r0);
+            BB *true_ = new_bb();
+            BB *false_ = new_bb();
+            BB *last = new_bb();
+            printf("beq t%d,t%d,.L%d\n", r1->vn, r2->vn, true_->label);
             kill_reg(r1);
             kill_reg(r2);
-            return r3;
+
+            // 分支跳转失败后直接来到false块
+            jmp(false_);
+
+            currentBB = true_;
+            printf(".L%d:\n", currentBB->label);
+            printf("li t%d,1\n", r0->vn);
+            jmp(last);
+
+            currentBB = false_;
+            printf(".L%d:\n", currentBB->label);
+            printf("li t%d,0\n", r0->vn);
+            jmp(last);
+
+            currentBB = last;
+            printf(".L%d:\n", currentBB->label);
+            nop();
+
+            return r0;
+            // printf("sub t%d,t%d,t%d\n", r0->vn, r1->vn, r2->vn);
+            // Reg *r3 = new_reg();
+            // printf("seqz t%d,t%d\n", r3->vn, r0->vn);
+
+            // kill_reg(r0);
+            // kill_reg(r1);
+            // kill_reg(r2);
+            // return r3;
         }
         case OP_NE: {
             Reg *r0 = new_reg();
             Reg *r1 = gen_expr(node->lhs);
             Reg *r2 = gen_expr(node->rhs);
-            printf("sub t%d,t%d,t%d\n", r0->vn, r1->vn, r2->vn);
-            Reg *r3 = new_reg();
-            printf("snez t%d,t%d\n", r3->vn, r0->vn);
 
-            kill_reg(r0);
+            BB *true_ = new_bb();
+            BB *false_ = new_bb();
+            BB *last = new_bb();
+            printf("bne t%d,t%d,.L%d\n", r1->vn, r2->vn, true_->label);
             kill_reg(r1);
             kill_reg(r2);
-            return r3;
+
+            jmp(false_);
+
+            currentBB = true_;
+            printf(".L%d:\n", currentBB->label);
+            printf("li t%d,1\n", r0->vn);
+            jmp(last);
+
+            currentBB = false_;
+            printf(".L%d:\n", currentBB->label);
+            printf("li t%d,0\n", r0->vn);
+            jmp(last);
+
+            currentBB = last;
+            printf(".L%d:\n", currentBB->label);
+            nop();
+
+            return r0;
+            // Reg *r0 = new_reg();
+            // Reg *r1 = gen_expr(node->lhs);
+            // Reg *r2 = gen_expr(node->rhs);
+            // printf("sub t%d,t%d,t%d\n", r0->vn, r1->vn, r2->vn);
+            // Reg *r3 = new_reg();
+            // printf("snez t%d,t%d\n", r3->vn, r0->vn);
+
+            // kill_reg(r0);
+            // kill_reg(r1);
+            // kill_reg(r2);
+            // return r3;
         }
         case OP_LT: {
             Reg *r0 = new_reg();
             Reg *r1 = gen_expr(node->lhs);
             Reg *r2 = gen_expr(node->rhs);
-            printf("slt t%d,t%d,t%d\n", r0->vn, r1->vn, r2->vn);
 
+            BB *true_ = new_bb();
+            BB *false_ = new_bb();
+            BB *last = new_bb();
+            printf("blt t%d,t%d,.L%d\n", r1->vn, r2->vn, true_->label);
             kill_reg(r1);
             kill_reg(r2);
+
+            jmp(false_);
+
+            currentBB = true_;
+            printf(".L%d:\n", currentBB->label);
+            printf("li t%d,1\n", r0->vn);
+            jmp(last);
+
+            currentBB = false_;
+            printf(".L%d:\n", currentBB->label);
+            printf("li t%d,0\n", r0->vn);
+            jmp(last);
+
+            currentBB = last;
+            printf(".L%d:\n", currentBB->label);
+            nop();
+
             return r0;
+            // Reg *r0 = new_reg();
+            // Reg *r1 = gen_expr(node->lhs);
+            // Reg *r2 = gen_expr(node->rhs);
+            // printf("slt t%d,t%d,t%d\n", r0->vn, r1->vn, r2->vn);
+
+            // kill_reg(r1);
+            // kill_reg(r2);
+            // return r0;
         }
-        case OP_LT2: {
+        case OP_GT: {
             Reg *r0 = new_reg();
             Reg *r1 = gen_expr(node->lhs);
             Reg *r2 = gen_expr(node->rhs);
-            printf("slt t%d,t%d,t%d\n", r0->vn, r2->vn, r1->vn);
 
+            BB *true_ = new_bb();
+            BB *false_ = new_bb();
+            BB *last = new_bb();
+            printf("bgt t%d,t%d,.L%d\n", r1->vn, r2->vn, true_->label);
             kill_reg(r1);
             kill_reg(r2);
+
+            jmp(false_);
+
+            currentBB = true_;
+            printf(".L%d:\n", currentBB->label);
+            printf("li t%d,1\n", r0->vn);
+            jmp(last);
+
+            currentBB = false_;
+            printf(".L%d:\n", currentBB->label);
+            printf("li t%d,0\n", r0->vn);
+            jmp(last);
+
+            currentBB = last;
+            printf(".L%d:\n", currentBB->label);
+            nop();
+
             return r0;
+            // Reg *r0 = new_reg();
+            // Reg *r1 = gen_expr(node->lhs);
+            // Reg *r2 = gen_expr(node->rhs);
+            // printf("slt t%d,t%d,t%d\n", r0->vn, r2->vn, r1->vn);
+
+            // kill_reg(r1);
+            // kill_reg(r2);
+            // return r0;
         }
         case OP_LE: {
             Reg *r0 = new_reg();
             Reg *r1 = gen_expr(node->lhs);
             Reg *r2 = gen_expr(node->rhs);
-            printf("sub t%d,t%d,t%d\n", r0->vn, r1->vn, r2->vn);
 
+            BB *true_ = new_bb();
+            BB *false_ = new_bb();
+            BB *last = new_bb();
+            printf("ble t%d,t%d,.L%d\n", r1->vn, r2->vn, true_->label);
             kill_reg(r1);
             kill_reg(r2);
 
-            Reg *r3 = new_reg();
-            Reg *r4 = new_reg();
-            Reg *r5 = new_reg();
-            printf("sltz t%d,t%d\n", r3->vn, r0->vn);
-            printf("seqz t%d,t%d\n", r4->vn, r0->vn);
-            printf("or t%d,t%d,t%d\n", r5->vn, r3->vn, r4->vn);
+            jmp(false_);
 
-            kill_reg(r0);
-            kill_reg(r3);
-            kill_reg(r4);
-            return r5;
+            currentBB = true_;
+            printf(".L%d:\n", currentBB->label);
+            printf("li t%d,1\n", r0->vn);
+            jmp(last);
+
+            currentBB = false_;
+            printf(".L%d:\n", currentBB->label);
+            printf("li t%d,0\n", r0->vn);
+            jmp(last);
+
+            currentBB = last;
+            printf(".L%d:\n", currentBB->label);
+            nop();
+
+            return r0;
+            // Reg *r0 = new_reg();
+            // Reg *r1 = gen_expr(node->lhs);
+            // Reg *r2 = gen_expr(node->rhs);
+            // printf("sub t%d,t%d,t%d\n", r0->vn, r1->vn, r2->vn);
+
+            // kill_reg(r1);
+            // kill_reg(r2);
+
+            // Reg *r3 = new_reg();
+            // Reg *r4 = new_reg();
+            // Reg *r5 = new_reg();
+            // printf("sltz t%d,t%d\n", r3->vn, r0->vn);
+            // printf("seqz t%d,t%d\n", r4->vn, r0->vn);
+            // printf("or t%d,t%d,t%d\n", r5->vn, r3->vn, r4->vn);
+
+            // kill_reg(r0);
+            // kill_reg(r3);
+            // kill_reg(r4);
+            // return r5;
         }
-        case OP_LE2: {
+        case OP_GE: {
             Reg *r0 = new_reg();
             Reg *r1 = gen_expr(node->lhs);
             Reg *r2 = gen_expr(node->rhs);
-            printf("sub t%d,t%d,t%d\n", r0->vn, r2->vn, r1->vn);
 
+            BB *true_ = new_bb();
+            BB *false_ = new_bb();
+            BB *last = new_bb();
+            printf("bge t%d,t%d,.L%d\n", r1->vn, r2->vn, true_->label);
             kill_reg(r1);
             kill_reg(r2);
 
-            Reg *r3 = new_reg();
-            Reg *r4 = new_reg();
-            Reg *r5 = new_reg();
-            printf("sltz t%d,t%d\n", r3->vn, r0->vn);
-            printf("seqz t%d,t%d\n", r4->vn, r0->vn);
-            printf("or t%d,t%d,t%d\n", r5->vn, r3->vn, r4->vn);
+            jmp(false_);
 
-            kill_reg(r0);
-            kill_reg(r3);
-            kill_reg(r4);
-            return r5;
+            currentBB = true_;
+            printf(".L%d:\n", currentBB->label);
+            printf("li t%d,1\n", r0->vn);
+            jmp(last);
+
+            currentBB = false_;
+            printf(".L%d:\n", currentBB->label);
+            printf("li t%d,0\n", r0->vn);
+            jmp(last);
+
+            currentBB = last;
+            printf(".L%d:\n", currentBB->label);
+            nop();
+
+            return r0;
+            // Reg *r0 = new_reg();
+            // Reg *r1 = gen_expr(node->lhs);
+            // Reg *r2 = gen_expr(node->rhs);
+            // printf("sub t%d,t%d,t%d\n", r0->vn, r2->vn, r1->vn);
+
+            // kill_reg(r1);
+            // kill_reg(r2);
+
+            // Reg *r3 = new_reg();
+            // Reg *r4 = new_reg();
+            // Reg *r5 = new_reg();
+            // printf("sltz t%d,t%d\n", r3->vn, r0->vn);
+            // printf("seqz t%d,t%d\n", r4->vn, r0->vn);
+            // printf("or t%d,t%d,t%d\n", r5->vn, r3->vn, r4->vn);
+
+            // kill_reg(r0);
+            // kill_reg(r3);
+            // kill_reg(r4);
+            // return r5;
         }
         case OP_LOGAND: {
             Reg *r0 = new_reg();
@@ -341,12 +507,10 @@ static Reg *gen_expr(Node *node) {
     switch (node->node_type) {
         case ND_BINARY_EXPR:
             return gen_binop(node);
-            break;
         case ND_NUM: {
             Reg *r0 = new_reg();
             printf("li t%d,%s\n", r0->vn, node->tok->value);
             return r0;
-            break;
         }
         case ND_STR: {
             Reg *r0 = new_reg();
@@ -367,7 +531,6 @@ static Reg *gen_expr(Node *node) {
             Reg *r0 = new_reg();
             printf("lw t%d,-%d(s0)\n", r0->vn, v->offset);
             return r0;
-            break;
         }
         case ND_FUNCALL: {
             Reg *args[6];
@@ -383,7 +546,6 @@ static Reg *gen_expr(Node *node) {
             printf("call %s\n", node->id->value);
             printf("mv t%d,a0\n", r0->vn);
             return r0;
-            break;
         }
     }
 }

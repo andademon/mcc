@@ -156,8 +156,8 @@ enum {
     OP_NE,        // !=
     OP_LT,        // <
     OP_LE,        // <=
-    OP_LT2,       // >
-    OP_LE2,       // >=
+    OP_GT,       // >
+    OP_GE,       // >=
     OP_ASSIGN,    // =
     OP_COND,      // ?:
     OP_COMMA,     // ,

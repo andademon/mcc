@@ -121,8 +121,8 @@ static void init_op_map() {
     map_puti(op_map, "%", OP_MOD);
     map_puti(op_map, "<", OP_LT);
     map_puti(op_map, "<=", OP_LE);
-    map_puti(op_map, ">", OP_LT2);
-    map_puti(op_map, ">=", OP_LE2);
+    map_puti(op_map, ">", OP_GT);
+    map_puti(op_map, ">=", OP_GE);
     map_puti(op_map, "==", OP_EQ);
     map_puti(op_map, "!=", OP_NE);
     map_puti(op_map, "&&", OP_LOGAND);
