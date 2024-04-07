@@ -133,29 +133,26 @@ static void gen_gvar(Var *var) {
 // 将局部变量保存在内存中，返回记录的偏移地址（Q: 偏移地址如何计算？）
 static void gen_lvar(Var *var) {
     // 无初始化，跳过
-    // 有初始化，且初始化类型为以下之一：
-    // INT | CHAR | BOOL
-    // 加载到寄存器，然后保存到内存，在符号表中记录在内存中的偏移量 -> li，sw
+    // 有初始化
+    // 将初始化结果加载到寄存器，然后保存到内存，在符号表中记录在内存中的偏移量
 
-    // 当且仅当变量有赋初值且为常量赋值时
-    if (var->init == NULL 
-        || (var->init->node_type != ND_NUM 
-            && var->init->node_type != ND_CHAR)
-    )
-        return;
+    // 当且仅当变量有赋初值时
+    if (var->init == NULL) return;
+
+    // 计算新offset并更新到符号表中
     offset += 4;
-    Reg *reg = new_reg();
     var->offset = offset;
     Var *temp_var = lookup(currentScope, var->name);
     temp_var->offset = offset;
+
+    // 将初始化结果保存到内存
+    Reg *reg = gen_expr(var->init);
     switch(var->type) {
         case INT: {
-            printf("li t%d,%s\n", reg->vn, var->init->tok->value);
             printf("sw t%d,-%d(s0)\n", reg->vn, offset);
             break;
         }
         case CHAR: {
-            printf("li t%d,%d\n", reg->vn, (int)var->init->tok->value[0]);
             printf("sb t%d,-%d(s0)\n", reg->vn, offset);
             break;
         }
@@ -538,6 +535,11 @@ static Reg *gen_expr(Node *node) {
         case ND_NUM: {
             Reg *r0 = new_reg();
             printf("li t%d,%s\n", r0->vn, node->tok->value);
+            return r0;
+        }
+        case ND_CHAR: {
+            Reg *r0 = new_reg();
+            printf("li t%d,%d\n", r0->vn, (int)node->tok->value[0]);
             return r0;
         }
         case ND_STR: {
