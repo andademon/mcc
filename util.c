@@ -303,6 +303,7 @@ Node *new_node(char *type_name, int node_type) {
     node->args = new_vec();
     node->cases = new_vec();
     node->declarators = new_vec();
+    node->exprs = new_vec();
     return node;
 }
 
@@ -332,7 +333,12 @@ void printNode(Node *node, int tabs) {
     printTab(tabs);
     printf("%s\n", node->type_name); // 公共属性 type_name
     switch(node->node_type) {
-        case ND_ASSIGN_EXPR:
+        case ND_SEQUENCE_EXPR:
+            printTab(tabs + 1);
+            for (int i = 0;i < node->exprs->len;i++) {
+                printNode(node->exprs->data[i], tabs + 1);
+            }
+            break;
         case ND_BINARY_EXPR:
             printTab(tabs + 1);
             printf("left: \n");
@@ -342,6 +348,17 @@ void printNode(Node *node, int tabs) {
             printNode(node->rhs, tabs + 2);
             printTab(tabs + 1);
             printf("op: %s\n", node->op->value);
+            break;
+        case ND_TERNARY_EXPR:
+            printTab(tabs + 1);
+            printf("test: \n");
+            printNode(node->test, tabs + 2);
+            printTab(tabs + 1);
+            printf("consequent: \n");
+            printNode(node->consequent, tabs + 2);
+            printTab(tabs + 1);
+            printf("alternative: \n");
+            printNode(node->alternative, tabs + 2);
             break;
         case ND_BLOCK:
             for (int i = 0;i < node->decls->len;i++) {
@@ -431,10 +448,6 @@ void printNode(Node *node, int tabs) {
             printf("alternative: \n");
             printNode(node->alternative, tabs + 2);
             break;
-        case ND_NUM:
-            printTab(tabs + 1);
-            printf("value: %s\n", node->tok->value);
-            break;
         case ND_RETURN_STMT:
             printNode(node->body, tabs + 1);
             break;
@@ -477,7 +490,13 @@ void printNode(Node *node, int tabs) {
             printf("body:\n");
             printNode(node->body, tabs + 2);
             break;
+        case ND_NUM:
+            printTab(tabs + 1);
+            printf("value: %s\n", node->tok->value);
+            break;
         case ND_STR:
+            printTab(tabs + 1);
+            printf("value: %s\n", node->tok->value);
             break;
         default:
             printNode(node->body, tabs + 1);

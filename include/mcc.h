@@ -118,10 +118,13 @@ enum {
     ND_WHILE_STMT,
     ND_FOR_STMT,
     ND_JUMP_STMT,
-
     ND_EXPR_STMT, // Expression statement
+
+    ND_UNARY_EXPR, // unary expression
     ND_BINARY_EXPR, // binary expression
-    ND_ASSIGN_EXPR, // assignment expression
+    ND_TERNARY_EXPR, // ternary expression
+    ND_SEQUENCE_EXPR, // sequence expression
+
     ND_NUM,       // literal Number
     ND_CHAR,
     ND_STR,
@@ -222,10 +225,12 @@ typedef struct Node {
 
     Vector *decls;
     Vector *stmts;
-    Vector *cases;
-    Vector *params;
-    Vector *args;
+    Vector *cases; // switch-case
+    Vector *params; // function decl
+    Vector *args; // function call
     Vector *declarators;
+
+    Vector *exprs; // sequence expression
 } Node;
 
 Node *new_node(char *type_name, int node_type);

@@ -6,7 +6,7 @@
  * 2.declaration-list −> declaration { declaration }
  * 3.declaration -> variable-declaration | function-declaration
  * 4.variable-declaration -> type-specifier variable-declarator { , variable-declarator } ;
- * n.variable-declarator -> ID [ "[" NUM "]" ] [ = expression ]
+ * n.variable-declarator -> ID [ "[" NUM "]" ] [ = assignment-expression ]
  * 5.type-specifier −> int | void | struct-specifier
  * 6.struct-specifier −> struct [ID] [ { struct-declaration-list} ]
  * 7.struct-declaration-list ->
@@ -35,19 +35,26 @@
  * 20.labeled-statement −> ID : statement
  * | case conditional-expression : statement
  * | default : statement
- * 21.expression −> assignment-expression
- * | conditional-expression
- * 22.assignment-expression −> variable = expression
- * 23.variable −> ID [ “[” NUM “]” | . ID ]
- * 24.conditional-expression −> additive-expression [relation-operator additive-expression ]
- * 25.relation-operator −> <= | < | > | >= | != | ==
+ * 21.expression −> assignment-expression {, assignment-expression}
+ * 22.assignment-expression −> conditional-expression {assignment-operator conditional-expression}
+ * 23.assignment-operator -> =
+ * 24.conditional-expression −> logical-or-expression
+ * | logical-or-expression ? expression : conditional-expression
+ * 2n.logical-or-expression -> logical-and-expression {|| logical-and-expression}
+ * 2n.logical-and-expression -> equality-expression {&& equality-expression}
+ * 2n.equality-expression -> relational-expression {equality-operator relational-expression}
+ * 2n.equality-operator -> == | !=
+ * 2n.relational-expression -> additive-expression {relational-operator additive-expression}
+ * 25.relational-operator −> > | < | >= | <=
  * 26.additive-expression −> multiplicative-expression {add-operator multiplicative-expression }
  * 27.add-operator −> + | -
  * 28.multiplicative-expression −> primary-expression {mul-operator primary-expression}
  * 29.mul-operator −> * | /
- * 30.primary-expression −> variable | NUM | ( expression ) | call-function
+ * 30.primary-expression −> variable | constant | ( expression ) | call-function
+ * 3n.variable −> ID [ “[” NUM “]” | . ID ]
+ * 3n.constant -> NUM | CHAR | STR
  * 31.call-function −> ID ( [ argument-list ] )
- * 32.argument-list −> expression { , expression }
+ * 32.argument-list −> assignment-expression { , assignment-expression }
 */
 
 static Program *prog;
@@ -84,11 +91,16 @@ static Node *jump_statement();
 static Node *labeled_statement();
 static Node *expression();
 static Node *assignment_expression();
-static Node *variable();
 static Node *conditional_expression();
+static Node *logical_or_expression();
+static Node *logical_and_expression();
+static Node *equality_expression();
+static Node *relational_expression();
 static Node *additive_expression();
 static Node *multiplicative_expression();
+static Node *unary_expression();
 static Node *primary_expression();
+static Node *variable();
 static Node *call_function();
 static Vector *argument_list();
 static Node *constant();
@@ -113,6 +125,8 @@ static void init_op_map() {
     map_puti(op_map, ">=", OP_LE2);
     map_puti(op_map, "==", OP_EQ);
     map_puti(op_map, "!=", OP_NE);
+    map_puti(op_map, "&&", OP_LOGAND);
+    map_puti(op_map, "||", OP_LOGOR);
     map_puti(op_map, "=", OP_ASSIGN);
 }
 
@@ -267,7 +281,7 @@ static Node *variable_declarator() {
         }
         if (match("=")) {
             next_token();
-            Node *init = expression();
+            Node *init = assignment_expression();
             node->init = init;
         }
         return node;
@@ -721,12 +735,27 @@ static Node *labeled_statement() {
  * logical-expression -> expr logical-operator expr
  * 
  */
+// static Node *expression() {
+//     Token *token_bak = &(*current_token);
+//     Node *expr = assignment_expression();
+//     if (expr == NULL) {
+//         current_token = token_bak;
+//         expr = conditional_expression();
+//     }
+//     return expr;
+// }
+
 static Node *expression() {
-    Token *token_bak = &(*current_token);
     Node *expr = assignment_expression();
-    if (expr == NULL) {
-        current_token = token_bak;
-        expr = conditional_expression();
+    if (match(",")) {
+        Node *sequenceExpr = new_node("SequenceExpression", ND_SEQUENCE_EXPR);
+        vec_push(sequenceExpr->exprs, expr);
+        while (match(",")) {
+            next_token();
+            Node *new_expr = assignment_expression();
+            vec_push(sequenceExpr->exprs, new_expr);
+        }
+        return sequenceExpr;
     }
     return expr;
 }
@@ -735,27 +764,47 @@ static Node *expression() {
  * 22.assignment-expression −> variable = expression
  * TODO: += -= *= /=
 */
+// static Node *assignment_expression() {
+//     Node *left = variable();
+//     if (left == NULL) {
+//         return NULL;
+//     }
+//     if (match("=")) {
+//         Token *op = &(*current_token);
+//         next_token();
+//         Node *right = expression();
+//         if (right != NULL) {
+//             Node *assignmentExpr = new_node("AssignmentExpr", ND_ASSIGN_EXPR);
+//             assignmentExpr->lhs = left;
+//             assignmentExpr->rhs = right;
+//             assignmentExpr->op = op;
+//             assignmentExpr->op_type = OP_ASSIGN;
+//             return assignmentExpr;
+//         }
+//     }
+//     return NULL;
+// }
+
 static Node *assignment_expression() {
-    Node *left = variable();
-    if (left == NULL) {
-        return NULL;
-    }
-    if (match("=")) {
+    Node *left = conditional_expression();
+
+    while (match("=")) {
+        if (left->node_type != ND_IDENT) {
+            printf("left part in assignment expression must be a valid variable.");
+            exit(1);
+        }
         Token *op = &(*current_token);
         next_token();
-        Node *right = expression();
-        if (right != NULL) {
-            Node *assignmentExpr = new_node("AssignmentExpr", ND_ASSIGN_EXPR);
-            assignmentExpr->lhs = left;
-            assignmentExpr->rhs = right;
-            assignmentExpr->op = op;
-            assignmentExpr->op_type = OP_ASSIGN;
-            return assignmentExpr;
-        }
+
+        Node *right = conditional_expression();
+        Node *left_bak = left;
+        left = new_node("binaryExpr", ND_BINARY_EXPR);
+        left->lhs = left_bak;
+        left->rhs = right;
+        left->op = op;
+        left->op_type = get_op_type(op->value);
     }
-    return NULL;
-    // expect("=");
-    // expression();
+    return left;
 }
 
 /* 23.variable −> ID [ “[” NUM “]” | . ID ] */
@@ -786,32 +835,127 @@ static Node *variable() {
  * 24.conditional-expression −> additive-expression [relation-operator additive-expression ]
  * 25.relation-operator −> <= | < | > | >= | != | ==
 */
+// static Node *conditional_expression() {
+//     Node *left = additive_expression();
+//     Node *right = NULL;
+//     if (left == NULL) {
+//         return NULL;
+//     }
+//     if (match("!=")
+//         || match("==")
+//         || match(">")
+//         || match(">=")
+//         || match("<")
+//         || match("<=")
+//     ) {
+//         Token *op = &(*current_token);
+//         next_token();
+//         right = additive_expression();
+//         if (right == NULL) {
+//             return NULL;
+//         }
+//         else {
+//             Node *node = new_node("BinaryExpr", ND_BINARY_EXPR);
+//             node->lhs = left;
+//             node->rhs = right;
+//             node->op = op;
+//             node->op_type = get_op_type(op->value);
+//             return node;
+//         }
+//     }
+//     return left;
+// }
+
 static Node *conditional_expression() {
-    Node *left = additive_expression();
-    Node *right = NULL;
-    if (left == NULL) {
-        return NULL;
+    Node *expr = logical_or_expression();
+    if (match("?")) {
+        Node *consequent = expression();
+        expect(":");
+        Node *alternative = conditional_expression();
+        Node *expr_bak = expr;
+        expr = new_node("TernaryExpression", ND_TERNARY_EXPR);
+        expr->test = expr_bak;
+        expr->consequent = consequent;
+        expr->alternative = alternative;
     }
-    if (match("!=")
-        || match("==")
-        || match(">")
-        || match(">=")
-        || match("<")
+    return expr;
+}
+
+static Node *logical_or_expression() {
+    Node *left = logical_and_expression();
+
+    while (match("||")) {
+        Token *op = &(*current_token);
+        next_token();
+        Node *right = logical_and_expression();
+        if (right != NULL) {
+            Node *left_bak = left;
+            left = new_node("binaryExpr", ND_BINARY_EXPR);
+            left->lhs = left_bak;
+            left->rhs = right;
+            left->op = op;
+            left->op_type = get_op_type(op->value);
+        }
+    }
+    return left;
+}
+
+static Node *logical_and_expression() {
+    Node *left = equality_expression();
+
+    while (match("&&")) {
+        Token *op = &(*current_token);
+        next_token();
+        Node *right = equality_expression();
+        if (right != NULL) {
+            Node *left_bak = left;
+            left = new_node("binaryExpr", ND_BINARY_EXPR);
+            left->lhs = left_bak;
+            left->rhs = right;
+            left->op = op;
+            left->op_type = get_op_type(op->value);
+        }
+    }
+    return left;
+}
+
+static Node *equality_expression() {
+    Node *left = relational_expression();
+
+    while (match("==") || match("!=")) {
+        Token *op = &(*current_token);
+        next_token();
+        Node *right = relational_expression();
+        if (right != NULL) {
+            Node *left_bak = left;
+            left = new_node("binaryExpr", ND_BINARY_EXPR);
+            left->lhs = left_bak;
+            left->rhs = right;
+            left->op = op;
+            left->op_type = get_op_type(op->value);
+        }
+    }
+    return left;
+}
+
+static Node *relational_expression() {
+    Node *left = additive_expression();
+
+    while (match(">") 
+        || match("<") 
+        || match(">=") 
         || match("<=")
     ) {
         Token *op = &(*current_token);
         next_token();
-        right = additive_expression();
-        if (right == NULL) {
-            return NULL;
-        }
-        else {
-            Node *node = new_node("BinaryExpr", ND_BINARY_EXPR);
-            node->lhs = left;
-            node->rhs = right;
-            node->op = op;
-            node->op_type = get_op_type(op->value);
-            return node;
+        Node *right = additive_expression();
+        if (right != NULL) {
+            Node *left_bak = left;
+            left = new_node("binaryExpr", ND_BINARY_EXPR);
+            left->lhs = left_bak;
+            left->rhs = right;
+            left->op = op;
+            left->op_type = get_op_type(op->value);
         }
     }
     return left;
@@ -823,7 +967,6 @@ static Node *conditional_expression() {
  * TODO: 连加
 */
 static Node *additive_expression() {
-    // Node *expr = NULL;
     Node *left = multiplicative_expression();
     if (left == NULL) {
         return NULL;
@@ -846,17 +989,16 @@ static Node *additive_expression() {
 
 /**
  * 28.multiplicative-expression −> primary-expression {mul-operator primary-expression}
- * 29.mul-operator −> * | /
+ * 29.mul-operator −> * | / | %
  * TODO: fix
  * 如何处理连加 / 连乘
 */
 static Node *multiplicative_expression() {
-    // Node *expr = new_node("binaryExpr", ND_BINARY_EXPR);
     Node *left = primary_expression();
     if (left == NULL) {
         return NULL;
     }
-    while (match("*") || match("/")) {
+    while (match("*") || match("/") || match("%")) {
         Token *op = &(*current_token);
         next_token();
         Node *right = primary_expression();
@@ -890,10 +1032,6 @@ static Node *primary_expression() {
         return variable();
     }
     else if (match_type(NUMBER) || match_type(CHARACTER) || match_type(STRING)) {
-        // Token *tok = &(*current_token);
-        // next_token();
-        // Node *node = new_node("Literal", ND_NUM);
-        // node->tok = tok;
         return constant();
     }
     else if (match("(")) {
@@ -908,7 +1046,7 @@ static Node *primary_expression() {
 }
 
 /**
- * constant -> NUM | CHAR | String
+ * constant -> NUM | CHAR | STRING
 */
 static Node *constant() {
     Token *tok = &(*current_token);
@@ -952,13 +1090,6 @@ static Node *call_function() {
         }
     }
     return NULL;
-    // Node *node = new_node("CallExpr", ND_FUNCALL);
-    // expect_type(IDENTIFIER);
-    // expect("(");
-    // Vector *args = argument_list();
-    // node->args = args;
-    // expect(")");
-    // return node;
 }
 
 /**
@@ -966,21 +1097,18 @@ static Node *call_function() {
 */
 static Vector *argument_list() {
     Vector *args = new_vec();
-    Node *expr = expression();
+    Node *expr = assignment_expression();
     if (expr == NULL) {
         return NULL;
     }
     vec_push(args, expr);
-    // Node *p = expr;
     while (match(",")) {
         next_token();
-        Node *new_node = expression();
+        Node *new_node = assignment_expression();
         if (new_node == NULL) {
             break;
         }
         vec_push(args, new_node);
-        // p->next = next_node;
-        // p = p->next;
     }
     return args;
 }
