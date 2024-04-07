@@ -32,6 +32,10 @@ static BB *currentBB;
 
 static Vector *registers;
 
+static void nop() {
+    printf("nop\n\n");
+}
+
 static int new_label() {
     return nlabel++;
 }
@@ -250,6 +254,52 @@ static Reg *gen_binop(Node *node) {
             kill_reg(r4);
             return r5;
         }
+        case OP_LOGAND: {
+            Reg *r0 = new_reg();
+            Reg *r1 = gen_expr(node->lhs);
+            BB *bb1 = new_bb();
+            BB *last = new_bb();
+            printf("beqz t%d,.L\n", r1->vn, bb1->label);
+            kill_reg(r1);
+
+            Reg *r2 = gen_expr(node->rhs);
+            printf("beqz t%d,.L\n", r1->vn, bb1->label);
+            kill_reg(r2);
+
+            printf("li t%d,1\n",r0->vn);
+            jmp(last);
+
+            currentBB = bb1;
+            printf(".L%d:\n", currentBB->label);
+            printf("li t%d,0\n",r0->vn);
+            currentBB = last;
+            printf(".L%d:\n", currentBB->label);
+            nop();
+            return r0;
+        }
+        case OP_LOGOR: {
+            Reg *r0 = new_reg();
+            Reg *r1 = gen_expr(node->lhs);
+            BB *bb1 = new_bb();
+            BB *last = new_bb();
+            printf("bnez t%d,.L\n", r1->vn, bb1->label);
+            kill_reg(r1);
+
+            Reg *r2 = gen_expr(node->rhs);
+            printf("bnez t%d,.L\n", r1->vn, bb1->label);
+            kill_reg(r2);
+
+            printf("li t%d,0\n",r0->vn);
+            jmp(last);
+
+            currentBB = bb1;
+            printf(".L%d:\n", currentBB->label);
+            printf("li t%d,1\n",r0->vn);
+            currentBB = last;
+            printf(".L%d:\n", currentBB->label);
+            nop();
+            return r0;
+        }
         case OP_ADD:
         case OP_SUB:
         case OP_MUL:
@@ -452,7 +502,7 @@ static void gen_stmt(Node *node) {
 
             currentBB = break_;
             printf(".L%d:\n", currentBB->label);
-
+            nop();
             break;
         }
         case ND_FOR_STMT: {
@@ -493,6 +543,7 @@ static void gen_stmt(Node *node) {
 
             currentBB = break_;
             printf(".L%d:\n", currentBB->label);
+            nop();
             break;
         }
         case ND_IF_STMT: {
@@ -519,6 +570,7 @@ static void gen_stmt(Node *node) {
 
             currentBB = last;
             printf(".L%d:\n", currentBB->label);
+            nop();
             break;
         }
         case ND_EXPR_STMT: {
