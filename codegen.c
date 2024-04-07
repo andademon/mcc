@@ -259,11 +259,11 @@ static Reg *gen_binop(Node *node) {
             Reg *r1 = gen_expr(node->lhs);
             BB *bb1 = new_bb();
             BB *last = new_bb();
-            printf("beqz t%d,.L\n", r1->vn, bb1->label);
+            printf("beqz t%d,.L%d\n", r1->vn, bb1->label);
             kill_reg(r1);
 
             Reg *r2 = gen_expr(node->rhs);
-            printf("beqz t%d,.L\n", r1->vn, bb1->label);
+            printf("beqz t%d,.L%d\n", r1->vn, bb1->label);
             kill_reg(r2);
 
             printf("li t%d,1\n",r0->vn);
@@ -282,11 +282,11 @@ static Reg *gen_binop(Node *node) {
             Reg *r1 = gen_expr(node->lhs);
             BB *bb1 = new_bb();
             BB *last = new_bb();
-            printf("bnez t%d,.L\n", r1->vn, bb1->label);
+            printf("bnez t%d,.L%d\n", r1->vn, bb1->label);
             kill_reg(r1);
 
             Reg *r2 = gen_expr(node->rhs);
-            printf("bnez t%d,.L\n", r1->vn, bb1->label);
+            printf("bnez t%d,.L%d\n", r1->vn, bb1->label);
             kill_reg(r2);
 
             printf("li t%d,0\n",r0->vn);
@@ -313,7 +313,21 @@ static Reg *gen_binop(Node *node) {
             kill_reg(r1);
             kill_reg(r2);
             return r0;
-        }            
+        }
+        case OP_ASSIGN: {
+            Reg *r0 = new_reg();
+            Reg *r1 = gen_expr(node->rhs);
+            Var *temp_var = lookup(currentScope, node->lhs->id->value);
+            if (temp_var->offset == 0) {
+                offset += 4;
+                temp_var->offset = offset;
+            }
+            printf("mv t%d,t%d\n", r0->vn, r1->vn);
+            printf("sw t%d,-%d(s0)\n", r0->vn, temp_var->offset);
+
+            kill_reg(r1);
+            return r0;
+        }         
         default: {
             printf("unknown op type: %d\n", node->op_type);
             exit(1);
@@ -353,21 +367,6 @@ static Reg *gen_expr(Node *node) {
             Reg *r0 = new_reg();
             printf("lw t%d,-%d(s0)\n", r0->vn, v->offset);
             return r0;
-            break;
-        }
-        case ND_ASSIGN_EXPR: {
-            Reg *r0 = new_reg();
-            Reg *r1 = gen_expr(node->rhs);
-            Var *temp_var = lookup(currentScope, node->lhs->id->value);
-            if (temp_var->offset == 0) {
-                offset += 4;
-                temp_var->offset = offset;
-            }
-            printf("mv t%d,t%d\n", r0->vn, r1->vn);
-            printf("sw t%d,-%d(s0)\n", r0->vn, temp_var->offset);
-
-            kill_reg(r0);
-            kill_reg(r1);
             break;
         }
         case ND_FUNCALL: {
