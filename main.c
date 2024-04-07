@@ -4,9 +4,14 @@ static Token *head;
 
 int main(int argc, char *argv[])
 {
-    char *str = readFile("test/demo.c");
+    // char *str = readFile("test/demo.c");
     // char *str = readFile("test/hello.c");
     // char *str = readFile("test/fibonacci.c");
+    // char *str = readFile("test/gval.c");
+    // char *str = readFile("test/while.c");
+    // char *str = readFile("test/for.c");
+    char *str = readFile("test/if-else.c");
+
     printf("%s\n", str);
 
     printf("---Lexer---\n");
