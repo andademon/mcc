@@ -24,7 +24,16 @@ void insert(SymbolTable *node, char *key, void *val) {
 }
 
 void *lookup(SymbolTable *node, char *key) {
-    return map_get(node->entries, key);
+    void *val = map_get(node->entries, key);
+    if (val == NULL) {
+        SymbolTable *temp = node->parent;
+        while (temp) {
+            val = map_get(temp->entries, key);
+            if (val != NULL) break;
+            temp = temp->parent;
+        }
+    }
+    return val;
 }
 
 SymbolTable *enterScope(SymbolTable *parent) {
