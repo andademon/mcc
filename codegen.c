@@ -595,6 +595,10 @@ static Reg *gen_expr(Node *node) {
             Reg *r0 = new_reg();
             printf("call %s\n", node->id->value);
             printf("mv t%d,a0\n", r0->vn);
+
+            for (int i = 0;i < node->args->len;i++) {
+                kill_reg(args[i]);
+            }
             return r0;
         }
     }
