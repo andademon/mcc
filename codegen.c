@@ -15,6 +15,7 @@ static Reg *gen_expr(Node *node);
 // 全局变量放静态数据段中，局部变量则先将数据加载到寄存器中，然后用内存保存
 static void gen_gvar(Var *var);
 static void gen_lvar(Var *var);
+static IR *br(Reg *r, BB *then, BB *els);
 static IR *jmp(BB *bb);
 
 int nlabel = 1;
@@ -514,21 +515,25 @@ static Reg *gen_expr(Node *node) {
 
             Reg *r0 = gen_expr(node->test);
             br(r0, bb1, bb2);
-            kill_reg(r0);
 
             currentBB = bb1;
             printf(".L%d:\n", currentBB->label);
             Reg *r1 = gen_expr(node->consequent);
+            printf("mv t%d,t%d\n", r0->vn, r1->vn);
+            kill_reg(r1);
             jmp(last);
 
             currentBB = bb2;
             printf(".L%d:\n", currentBB->label);
-            Reg *r1 = gen_expr(node->alternative);
+            Reg *r2 = gen_expr(node->alternative);
+            printf("mv t%d,t%d\n", r0->vn, r2->vn);
+            kill_reg(r2);
             jmp(last);
 
             currentBB = last;
             printf(".L%d:\n", currentBB->label);
             nop();
+            return r0;
         }
         case ND_NUM: {
             Reg *r0 = new_reg();
