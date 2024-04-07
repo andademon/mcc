@@ -482,6 +482,14 @@ static Reg *gen_binop(Node *node) {
             Reg *r0 = new_reg();
             Reg *r1 = gen_expr(node->rhs);
             Var *temp_var = lookup(currentScope, node->lhs->id->value);
+            if (temp_var->is_gval) {
+                // 先将全局变量的地址加载到一个寄存器中保存
+                printf("la t%d,%s\n", r0->vn, temp_var->name);
+                // 将计算结果保存到该地址
+                printf("sw t%d,0(t%d)\n", r1->vn, r0->vn);
+                kill_reg(r0);
+                return r1;
+            }
             if (temp_var->offset == 0) {
                 offset += 4;
                 temp_var->offset = offset;
@@ -558,9 +566,21 @@ static Reg *gen_expr(Node *node) {
             if (v == NULL) {
                 exit(1);
             }
-            Reg *r0 = new_reg();
-            printf("lw t%d,-%d(s0)\n", r0->vn, v->offset);
-            return r0;
+            if (v->is_gval) {
+                Reg *r0 = new_reg();
+                Reg *r1 = new_reg();
+                // 加载全局变量地址
+                printf("la t%d,%s\n", r0->vn, v->name);
+                // 通过地址加载全局变量的值
+                printf("lw t%d,0(t%d)\n", r1->vn, r0->vn);
+                kill_reg(r0);
+                return r1;
+            }
+            else {
+                Reg *r0 = new_reg();
+                printf("lw t%d,-%d(s0)\n", r0->vn, v->offset);
+                return r0;
+            }
         }
         case ND_FUNCALL: {
             Reg *args[6];
@@ -883,8 +903,9 @@ void codegen(Program *prog) {
         for (int i = 0;i <= 6;i++) {
             vec_push(registers, new_real_reg());
         }
-    } 
-    printf(".section	.rodata\n");
+    }
+    // .rodata只读，向.rodata段写会报错，因此可修改全局变量应保存在.data段
+    printf(".section	.data\n");
     for (int i = 0;i < prog->gvars->len;i++) {
         emit_data(prog->gvars->data[i]);
         puts("");

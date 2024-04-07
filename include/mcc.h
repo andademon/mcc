@@ -266,6 +266,8 @@ typedef struct {
     int offset;
 
     bool is_array;
+    bool is_gval;
+
     // if is array
     int len;
     Vector *vals;

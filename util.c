@@ -540,6 +540,7 @@ Program *tree_to_prog(Program *prog) {
             // if (var->is_array) var->len = declarator->len;
             var->init = declarator->init;
             var->offset = 0;
+            var->is_gval = true;
 
             vec_push(p->gvars, var);
         }
@@ -563,6 +564,7 @@ Program *tree_to_prog(Program *prog) {
                     // if (var->is_array) var->len = declarator->len;
                     var->init = declarator->init;
                     var->offset = 0;
+                    var->is_gval = false;
                     vec_push(fn->lvars, var);
                 }
             }
@@ -575,6 +577,7 @@ Program *tree_to_prog(Program *prog) {
                 var->offset = 0;
                 var->is_array = param->is_array;
                 var->type = param->decl_type;
+                var->is_gval = false;
                 vec_push(fn->params, var);
             }
 
