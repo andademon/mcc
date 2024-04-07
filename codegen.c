@@ -507,6 +507,29 @@ static Reg *gen_expr(Node *node) {
     switch (node->node_type) {
         case ND_BINARY_EXPR:
             return gen_binop(node);
+        case ND_TERNARY_EXPR: {
+            BB *bb1 = new_bb();
+            BB *bb2 = new_bb();
+            BB *last = new_bb();
+
+            Reg *r0 = gen_expr(node->test);
+            br(r0, bb1, bb2);
+            kill_reg(r0);
+
+            currentBB = bb1;
+            printf(".L%d:\n", currentBB->label);
+            Reg *r1 = gen_expr(node->consequent);
+            jmp(last);
+
+            currentBB = bb2;
+            printf(".L%d:\n", currentBB->label);
+            Reg *r1 = gen_expr(node->alternative);
+            jmp(last);
+
+            currentBB = last;
+            printf(".L%d:\n", currentBB->label);
+            nop();
+        }
         case ND_NUM: {
             Reg *r0 = new_reg();
             printf("li t%d,%s\n", r0->vn, node->tok->value);
