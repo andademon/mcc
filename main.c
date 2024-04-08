@@ -9,8 +9,10 @@ int main(int argc, char *argv[])
     // char *str = readFile("test/fibonacci.c");
     // char *str = readFile("test/gval.c");
     // char *str = readFile("test/while.c");
+    // char *str = readFile("test/do-while.c");
     // char *str = readFile("test/for.c");
-    char *str = readFile("test/if-else.c");
+    // char *str = readFile("test/if-else.c");
+    char *str = readFile("test/switch-case.c");
 
     printf("%s\n", str);
 
