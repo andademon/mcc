@@ -27,9 +27,11 @@ int offset = 0;
 static SymbolTable *table;
 
 static SymbolTable *currentScope;
-
 static Function *currentFunction; 
-static BB *currentBB;
+static BB *currentBB; // 指向当前basic block
+static BB *returnBB; // 保存函数返回时的basic block, 于函数初始化时同时初始化
+static BB *break_; // 临时basic block, 用于指向break语句的返回block, codegen初始化为NULL
+static BB *continue_; // 临时basic block, 用于指向continue语句的返回block, codegen初始化为NULL
 
 static Vector *registers;
 
@@ -690,8 +692,8 @@ static void gen_stmt(Node *node) {
     switch (node->node_type) {
         case ND_BLOCK: {
             // block_stmt直接生成一个新的basic block,basic block中依次存放所有子stmt的ir
-            BB *body = new_bb();
-            currentBB = body;
+            // BB *body = new_bb();
+            // currentBB = body;
             for (int i = 0;i < node->stmts->len;i++) {
                 gen_stmt(node->stmts->data[i]);
             }
@@ -702,12 +704,17 @@ static void gen_stmt(Node *node) {
             // 如何处理去向bb,我的想法是顺序生成bb,while stmt的去向bb就是下一个bb;
             BB *test = new_bb();
             BB *body = new_bb(); // while_stmt的主体
-            BB *break_ = new_bb(); // while_stmt break后的去处
+            BB *last = new_bb(); // while_stmt break后的去处
+
+            BB *break_save = break_;
+            BB *continue_save = continue_;
+            break_ = last;
+            continue_ = test;
 
             currentBB = test;
             printf(".L%d:\n", currentBB->label);
             Reg *test_reg = gen_expr(node->test);
-            br(test_reg, body, break_);
+            br(test_reg, body, last);
             kill_reg(test_reg);
 
             currentBB = body;
@@ -715,18 +722,27 @@ static void gen_stmt(Node *node) {
             gen_stmt(node->body);
             jmp(test);
 
-            currentBB = break_;
+            currentBB = last;
             printf(".L%d:\n", currentBB->label);
             nop();
+
+            break_ = break_save;
+            continue_ = continue_save;
             break;
         }
         case ND_FOR_STMT: {
             // 对于for stmt,和while一样分成两个主要basic block,test bb, body && update bb,以及去向bb
             // for stmt的开头还需要一个init bb,这样for stmt比while stmt多一个bb,应该是三个bb
             BB *init = new_bb();
-            BB *body = new_bb();
             BB *test = new_bb();
-            BB *break_ = new_bb();
+            BB *update = new_bb();
+            BB *body = new_bb();
+            BB *last = new_bb();
+
+            BB *break_save = break_;
+            BB *continue_save = continue_;
+            break_ = last;
+            continue_ = update;
             
             currentBB = init;
             printf(".L%d:\n", currentBB->label);
@@ -740,7 +756,7 @@ static void gen_stmt(Node *node) {
             printf(".L%d:\n", currentBB->label);
             if (node->test) {
                 Reg *test_reg = gen_expr(node->test);
-                br(test_reg, body, break_);
+                br(test_reg, body, last);
                 kill_reg(test_reg);
             }
 
@@ -748,17 +764,20 @@ static void gen_stmt(Node *node) {
             printf(".L%d:\n", currentBB->label);
             gen_stmt(node->body);
 
+            currentBB = update;
+            printf(".L%d:\n", currentBB->label);
             if (node->update) {
                 Reg *update_reg = gen_expr(node->update);
                 kill_reg(update_reg);
             }
-
-            // 这里body的出口是jmp test吗？有点不确定，待会验证            
             jmp(test);
 
-            currentBB = break_;
+            currentBB = last;
             printf(".L%d:\n", currentBB->label);
             nop();
+
+            break_ = break_save;
+            continue_ = continue_save;
             break;
         }
         case ND_IF_STMT: {
@@ -788,17 +807,76 @@ static void gen_stmt(Node *node) {
             nop();
             break;
         }
+        case ND_SWITCH_STMT: {
+            // r0保存discriminant的值
+            Reg *r0 = gen_expr(node->discriminant);
+            Vector *caseBBs = new_vec();
+            // break后的去处
+            BB *last = new_bb();
+
+            BB *break_save = break_;
+            break_ = last;
+            // 先根据discriminant生成跳转列表，一个case语句对应一个basic block
+            for (int i = 0;i < node->cases->len;i++) {
+                Node *case_ = node->cases->data[i];
+                BB *caseBB = new_bb();
+                vec_push(caseBBs, caseBB);
+
+                if (case_->test == NULL) continue;
+                Reg *r1 = gen_expr(case_->test);
+                printf("beq t%d,t%d,.L%d\n", r0->vn, r1->vn, caseBB->label);
+                kill_reg(r1);
+            }
+            kill_reg(r0);
+            // 如果有default分支，则switch的discriminant结束后添加跳转到default分支，而不是跳转到结束分支
+            for (int i = 0;i < node->cases->len;i++) {
+                Node *case_ = node->cases->data[i];
+                if (case_->test == NULL) {
+                    jmp(caseBBs->data[i]);
+                    break;
+                }
+                else if (i == node->cases->len) {
+                    jmp(last);
+                }
+            }
+            // 逐个生成case基本块
+            for (int i = 0;i < node->cases->len;i++) {
+                Node *case_ = node->cases->data[i];
+                currentBB = caseBBs->data[i];
+                printf(".L%d:\n", currentBB->label);
+                gen_stmt(case_->consequent);
+            }
+            // 生成最后的last basic block
+            currentBB = last;
+            printf(".L%d:\n", currentBB->label);
+
+            break_ = break_save;
+            break;
+        }
+        case ND_CASE: {
+            break;
+        }
+        case ND_CONTINUE_STMT: {
+            jmp(continue_);
+            break;
+        }
+        case ND_BREAK_STMT: {
+            jmp(break_);
+            break;
+        }
         case ND_EXPR_STMT: {
-            Reg *reg = gen_expr(node->body);
-            kill_reg(reg);
+            Reg *r0 = gen_expr(node->body);
+            kill_reg(r0);
             break;
         }
         case ND_RETURN_STMT: {
             // 如果return语句不含返回值，则直接return,否则将计算返回值并将返回值移动至返回值寄存器
-            if (node->body == NULL) return;
-            Reg *reg = gen_expr(node->body);
-            printf("mv a0,t%d\n",reg->vn);
-            kill_reg(reg);
+            if (node->body != NULL) {
+                Reg *r0 = gen_expr(node->body);
+                printf("mv a0,t%d\n",r0->vn);
+                kill_reg(r0);
+            }
+            jmp(returnBB);
             break;
         }
     }
@@ -864,6 +942,8 @@ void emit_code(Function *fn) {
 
     puts("");
 
+    returnBB = new_bb();
+
     for (int i = 0;i < fn->params->len;i++) {
         gen_param(fn->params->data[i], i);
     }
@@ -875,6 +955,10 @@ void emit_code(Function *fn) {
     }
 
     puts("");
+
+    
+    currentBB = returnBB;
+    printf(".L%d:\n", currentBB->label);
 
     printf("ld      t0,-%d(s0)\n", 16 + 8 * 1);
     printf("ld      t1,-%d(s0)\n", 16 + 8 * 2);
@@ -898,6 +982,8 @@ static void reset_registers(Vector *regs) {
 }
 
 void codegen(Program *prog) {
+    break_ = NULL;
+    continue_ = NULL;
     if (!table) {
         table = buildSymbolTable(prog);
         currentScope = table;

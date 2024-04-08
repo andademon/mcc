@@ -696,7 +696,7 @@ static Node *labeled_statement() {
     if (match("case")) {
         next_token();
         Node *node = new_node("Case", ND_CASE);
-        Node *test = primary_expression();
+        node->test = primary_expression();
         expect(":");
         node->consequent = statement();
         return node;
