@@ -116,6 +116,7 @@ enum {
     ND_IF_STMT,
     ND_SWITCH_STMT,
     ND_WHILE_STMT,
+    ND_DO_WHILE,
     ND_FOR_STMT,
     ND_JUMP_STMT,
     ND_EXPR_STMT, // Expression statement

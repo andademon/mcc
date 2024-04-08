@@ -490,6 +490,14 @@ void printNode(Node *node, int tabs) {
             printf("body:\n");
             printNode(node->body, tabs + 2);
             break;
+        case ND_DO_WHILE:
+            printTab(tabs + 1);
+            printf("body:\n");
+            printNode(node->body, tabs + 2);
+            printTab(tabs + 1);
+            printf("test:\n");
+            printNode(node->test, tabs + 2);
+            break;
         case ND_NUM:
             printTab(tabs + 1);
             printf("value: %s\n", node->tok->value);

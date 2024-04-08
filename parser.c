@@ -491,7 +491,7 @@ static Node *statement() {
     if (match("if") || match("switch")) {
         return selection_statement();
     }
-    else if (match("while") || match("for")) {
+    else if (match("while") || match("for") || match("do")) {
         return iteration_statement();
     }
     else if (match("return") || match("break") || match("continue") || match("goto")) {
@@ -609,6 +609,7 @@ static Node *selection_statement() {
 /**
  * 18.iteration-statement −> while ( expression ) statement
  * | for ( [expression ] ; [expression ] ; [expression] ) statement
+ * | do statement while ( expression ) ;
 */
 static Node *iteration_statement() {
     if (match("while")) {
@@ -624,6 +625,17 @@ static Node *iteration_statement() {
         while_stmt->test = test;
         while_stmt->body = body;
         return while_stmt;
+    }
+    else if (match("do")) {
+        next_token();
+        Node *expr = new_node("DoWhileStmt", ND_DO_WHILE);
+        expr->body = statement();
+        expect("while");
+        expect("(");
+        expr->test = expression();
+        expect(")");
+        expect(";");
+        return expr;
     }
     else if (match("for")) {
         next_token();

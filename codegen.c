@@ -713,14 +713,42 @@ static void gen_stmt(Node *node) {
 
             currentBB = test;
             printf(".L%d:\n", currentBB->label);
-            Reg *test_reg = gen_expr(node->test);
-            br(test_reg, body, last);
-            kill_reg(test_reg);
+            Reg *r0 = gen_expr(node->test);
+            br(r0, body, last);
+            kill_reg(r0);
 
             currentBB = body;
             printf(".L%d:\n", currentBB->label);
             gen_stmt(node->body);
             jmp(test);
+
+            currentBB = last;
+            printf(".L%d:\n", currentBB->label);
+            nop();
+
+            break_ = break_save;
+            continue_ = continue_save;
+            break;
+        }
+        case ND_DO_WHILE: {
+            BB *body = new_bb();
+            BB *test = new_bb();
+            BB *last = new_bb();
+
+            BB *break_save = break_;
+            BB *continue_save = continue_;
+            break_ = last;
+            continue_ = test;
+
+            currentBB = body;
+            printf(".L%d:\n", currentBB->label);
+            gen_stmt(node->body);
+
+            currentBB = test;
+            printf(".L%d:\n", currentBB->label);
+            Reg *r0 = gen_expr(node->test);
+            br(r0, body, last);
+            kill_reg(r0);
 
             currentBB = last;
             printf(".L%d:\n", currentBB->label);
@@ -788,9 +816,9 @@ static void gen_stmt(Node *node) {
 
             currentBB = test;
             printf(".L%d:\n", currentBB->label);
-            Reg *test_reg = gen_expr(node->test);
-            br(test_reg, then, els);
-            kill_reg(test_reg);
+            Reg *r0 = gen_expr(node->test);
+            br(r0, then, els);
+            kill_reg(r0);
 
             currentBB = then;
             printf(".L%d:\n", currentBB->label);
