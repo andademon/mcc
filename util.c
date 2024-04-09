@@ -549,6 +549,7 @@ void printProgram(Program *prog) {
         for (int i = 0;i < prog->funcs->len;i++)
             printNode(prog->funcs->data[i], 0);
     }
+    puts("");
 }
 
 int str_to_int(char *str) {

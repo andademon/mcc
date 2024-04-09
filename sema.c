@@ -126,4 +126,5 @@ static SymbolTable *table;
 void sema(Program *prog) {
     table = buildSymbolTable(prog);
     printSymbolTable(table, 0);
+    puts("");
 }
