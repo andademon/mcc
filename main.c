@@ -12,7 +12,12 @@ int main(int argc, char *argv[])
     // char *str = readFile("test/do-while.c");
     // char *str = readFile("test/for.c");
     // char *str = readFile("test/if-else.c");
-    char *str = readFile("test/switch-case.c");
+    // char *str = readFile("test/switch-case.c");
+    char *str = readFile("test/array.c");
+
+    // char *str = readFile("test/quicksort.c");
+    // char *str = readFile("test/pointer.c");
+    
 
     printf("%s\n", str);
 

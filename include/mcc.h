@@ -130,6 +130,7 @@ enum {
     ND_CHAR,
     ND_STR,
     ND_IDENT,
+    ND_ARR_INIT,  // array init
     ND_CAST,      // Type cast
     ND_PROGRAM
 };
@@ -146,7 +147,10 @@ enum {
     OP_SUB,       // -
     OP_MUL,       // *
     OP_DIV,       // /
-    OP_NEG,       // unary -
+    OP_PLUS,      // unary +
+    OP_MINUS,     // unary -
+    OP_INC,       // increment ++
+    OP_DEC,       // decrement --
     OP_MOD,       // %
     OP_BITAND,    // &
     OP_BITOR,     // |
@@ -163,6 +167,7 @@ enum {
     OP_COND,      // ?:
     OP_COMMA,     // ,
     OP_MEMBER,    // . (struct member access)
+    OP_ARR_MEMBER,  // arr [ expr ] array member access
     OP_ADDR,      // unary &
     OP_DEREF,     // unary *
     OP_NOT,       // !
@@ -184,6 +189,7 @@ typedef struct Node {
     // type decl
     int decl_type;
     bool is_array;
+    bool is_pointer;
     int len;
 
     // func decl
@@ -199,7 +205,7 @@ typedef struct Node {
     // VariableDeclaration
     // struct Node *declarations;
 
-    // ExprStmt
+    // ExprStmt / array_name [ expression ] in UnaryExpression
     struct Node *expression;
 
     // BinaryExpr
@@ -207,6 +213,7 @@ typedef struct Node {
     struct Node *rhs;
     // OPERATOR op;
     Token *op;
+    bool is_prefix; // for unary-expr && postfix-expr op
     // Function
     // struct Node *params;
     Token *id;
@@ -228,7 +235,7 @@ typedef struct Node {
     Vector *stmts;
     Vector *cases; // switch-case
     Vector *params; // function decl
-    Vector *args; // function call
+    Vector *args; // function call, array init
     Vector *declarators;
 
     Vector *exprs; // sequence expression
@@ -264,9 +271,11 @@ typedef struct {
     int type;
     char *data;
 
-    int offset;
-
+    int offset; // offset from fp pointer
+    int size; // type size in memory
+    int memory; // memory size
     bool is_array;
+    bool is_pointer;
     bool is_gval;
 
     // if is array
@@ -369,12 +378,15 @@ void printToken(Token *token);
 void printTokenList(Token *tokens);
 void printNode(Node *node, int tabs);
 void printVar(Node *node);
-void printFunction(Node *node);
 void printProgram(Program *prog);
 
 // Reg *new_reg();
 
 // 将语法树结构转换为更易处理的var + function
 Program *tree_to_prog(Program *prog);
+int str_to_int(char *str);
+int get_size(int type);
+char *get_size_name(int size);
+int compute_var_size(Var *var);
 
 #endif

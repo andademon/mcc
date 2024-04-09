@@ -88,28 +88,6 @@ static BB *new_bb() {
     return bb;
 }
 
-static int get_size(int type) {
-    switch (type) {
-        case CHAR:
-            return 1;
-        case INT:
-            return 4;
-        default:
-            return 0;
-    }
-}
-
-static char *get_size_name(int size) {
-    switch (size) {
-        case 1:
-            return ".byte";
-        case 4:
-            return ".word";
-        default:
-            return NULL;
-    }
-}
-
 // 全局变量保存在静态数据段
 static void gen_gvar(Var *var) {
     printf("%s:\n", var->name);
@@ -141,8 +119,26 @@ static void gen_lvar(Var *var) {
     // 当且仅当变量有赋初值时
     if (var->init == NULL) return;
 
+    if (var->is_array) {
+        offset += (var->size * var->len);
+        var->offset = offset;
+
+        Var *temp_var = lookup(currentScope, var->name);
+        temp_var->offset = offset;
+        
+        if (var->init) {
+            Vector *args = var->init->args;
+            for (int i = 0;i < args->len;i++) {
+                Reg *r0 = gen_expr(args->data[i]);
+                printf("%s t%d,-%d(s0)\n", (var->is_pointer) ? "sd" : "sw", r0->vn, offset - var->size * i);
+                kill_reg(r0);
+            }
+        }
+        return;
+    }
+
     // 计算新offset并更新到符号表中
-    offset += 4;
+    offset += var->size;
     var->offset = offset;
     Var *temp_var = lookup(currentScope, var->name);
     temp_var->offset = offset;
@@ -155,11 +151,104 @@ static void gen_lvar(Var *var) {
             break;
         }
         case CHAR: {
-            printf("sb t%d,-%d(s0)\n", reg->vn, offset);
+            printf("sw t%d,-%d(s0)\n", reg->vn, offset);
             break;
         }
     }
     kill_reg(reg);
+}
+
+static Reg *gen_unaop(Node *node) {
+    switch (node->op_type) {
+        case OP_NOT: {
+            Reg *r0 = gen_expr(node->body);
+            printf("not t%d,t%d\n", r0->vn, r0->vn);
+            return r0;
+            break;
+        }
+        case OP_BITNOT: {
+            Reg *r0 = gen_expr(node->body);
+            printf("not t%d,t%d\n", r0->vn, r0->vn);
+            return r0;
+            break;
+        }
+        case OP_ADDR: {
+            break;
+        }
+        case OP_DEREF: {
+            break;
+        }
+        case OP_PLUS: {
+            Reg *r0 = gen_expr(node->body);
+            return r0;
+            break;
+        }
+        case OP_MINUS: {
+            Reg *r0 = gen_expr(node->body);
+            printf("negw t%d,t%d\n", r0->vn, r0->vn);
+            return r0;
+            break;
+        }
+        case OP_INC: {
+            Reg *r0 = gen_expr(node->body);
+            printf("addi t%d,t%d,1\n", r0->vn, r0->vn);
+            Var *v = lookup(currentScope, node->body->id->value);
+            if (v) {
+                if (v->is_gval) {
+                    Reg *r1 = new_reg();
+                    // 先将全局变量的地址加载到一个寄存器中保存
+                    printf("la t%d,%s\n", r1->vn, v->name);
+                    // 将计算结果保存到该地址
+                    printf("sw t%d,0(t%d)\n", r0->vn, r1->vn);
+                    kill_reg(r1);
+                }
+                else {
+                    // 通过偏移量保存在栈内
+                    printf("sw t%d,-%d(s0)\n", r0->vn, v->offset);
+                }
+            }
+            return r0;
+            break;
+        }
+        case OP_DEC: {
+            Reg *r0 = gen_expr(node->body);
+            printf("subi t%d,t%d,1\n", r0->vn, r0->vn);
+            Var *v = lookup(currentScope, node->body->id->value);
+            if (v) {
+                if (v->is_gval) {
+                    Reg *r1 = new_reg();
+                    // 先将全局变量的地址加载到一个寄存器中保存
+                    printf("la t%d,%s\n", r1->vn, v->name);
+                    // 将计算结果保存到该地址
+                    printf("sw t%d,0(t%d)\n", r0->vn, r1->vn);
+                    kill_reg(r1);
+                }
+                else {
+                    // 通过偏移量保存在栈内
+                    printf("sw t%d,-%d(s0)\n", r0->vn, v->offset); 
+                }  
+            }
+            return r0;
+            break;
+        }
+        case OP_MEMBER: {
+            break;
+        }
+        case OP_ARR_MEMBER: {
+            Var *v = lookup(currentScope, node->body->id->value);
+            Reg *r0 = new_reg();
+            Reg *r1 = gen_expr(node->expression);
+            printf("li t%d,%d\n", r0->vn, v->size);
+            printf("mul t%d,t%d,t%d\n", r1->vn, r1->vn, r0->vn);
+            Reg *r2 = gen_expr(node->body);
+            printf("add t%d,t%d,t%d\n", r2->vn, r1->vn, r2->vn);
+            printf("lw t%d,0(t%d)\n", r0->vn, r2->vn);
+            kill_reg(r1);
+            kill_reg(r2);
+            return r0;
+            break;
+        }
+    }
 }
 
 // 生成二元运算表达式IR，返回保存表达式结果的寄存器
@@ -513,6 +602,9 @@ static Reg *gen_binop(Node *node) {
 static Reg *gen_expr(Node *node) {
     if (!node) return NULL;
     switch (node->node_type) {
+        case ND_UNARY_EXPR: {
+            return gen_unaop(node);
+        }
         case ND_BINARY_EXPR:
             return gen_binop(node);
         case ND_TERNARY_EXPR: {
@@ -577,6 +669,15 @@ static Reg *gen_expr(Node *node) {
                 printf("lw t%d,0(t%d)\n", r1->vn, r0->vn);
                 kill_reg(r0);
                 return r1;
+            }
+            else if (v->is_array) {
+                // 返回数组首地址
+                Reg *r0 = new_reg();
+                if (!v->is_gval) {
+                    printf("li t%d,%d\n", r0->vn, v->offset);
+                    printf("sub t%d,s0,t%d\n", r0->vn, r0->vn);
+                }
+                return r0;
             }
             else {
                 Reg *r0 = new_reg();
@@ -911,7 +1012,7 @@ static void gen_stmt(Node *node) {
 }
 
 static void gen_param(Var *var, int i) {
-    offset += 4;
+    offset += var->size;
     Reg *r0 = new_reg();
     var->offset = offset;
     Var *temp_var = lookup(currentScope, var->name);
@@ -921,13 +1022,6 @@ static void gen_param(Var *var, int i) {
     kill_reg(r0);
 }
 
-int compute_var_size(Var *var) {
-    int size = get_size(var->type);
-    size = (size < 4) ? 4 :size;
-    if (var->is_array) return size * var->len;
-    return size;
-}
-
 int compute_function_stack_size(Function *func) {    
     int count_size = 16; // 预留16byte空间存s0和ra
     count_size += (8 * 7); // 预留保存寄存器的值
@@ -935,7 +1029,7 @@ int compute_function_stack_size(Function *func) {
         Var *var = func->lvars->data[i];
         count_size += compute_var_size(var);
     }
-    if (count_size % 16 != 0) {
+    if (count_size % 16 != 0) { // 16字节对齐
         count_size = ((count_size / 16) + 1) * 16;
     }
     return count_size;

@@ -6,6 +6,14 @@
  * 2.declaration-list −> declaration { declaration }
  * 3.declaration -> variable-declaration | function-declaration
  * 4.variable-declaration -> type-specifier variable-declarator { , variable-declarator } ;
+ * n.variable-declaration ->type-specifier init-declarator-list
+ * n.init-declarator-list -> init-declarator { , init-declaractor }
+ * n.init-declarator -> declarator [ = initializer ]
+ * n.declarator -> [ "*" ] ID [ "[" [ NUM ] "]" ]
+ * n.initializer -> assignment-expression
+ * | "{" [ constant { , constant } ] "}"
+ * n.initializer-list -> NUM { , NUM }
+ * 
  * n.variable-declarator -> ID [ "[" NUM "]" ] [ = assignment-expression ]
  * 5.type-specifier −> int | void | struct-specifier
  * 6.struct-specifier −> struct [ID] [ { struct-declaration-list} ]
@@ -14,7 +22,7 @@
  * n.function-body -> { [local-declarations] [statement-list] }
  * 9.parameters −> parameter-list | void | ε
  * 10.parameter-list -> parameter { , parameter }
- * 11.parameter −> type-specifier ID [ “[” “]” ]
+ * 11.parameter −> type-specifier declarator
  * 12.compound-statement −> { [statement-list] }
  * 13.local-declarations −> { variable-declaration }
  * 14.statement-list −> { statement }
@@ -48,9 +56,23 @@
  * 25.relational-operator −> > | < | >= | <=
  * 26.additive-expression −> multiplicative-expression {add-operator multiplicative-expression }
  * 27.add-operator −> + | -
- * 28.multiplicative-expression −> primary-expression {mul-operator primary-expression}
+ * 28.multiplicative-expression −> unary-expression {mul-operator unary-expression}
  * 29.mul-operator −> * | /
- * 30.primary-expression −> variable | constant | ( expression ) | call-function
+ * 2n.unary-expression -> postfix-expression
+ * | ++ unary-expression
+ * | -- unary-expression
+ * | unary-operator unary-expression
+ * 暂不支持sizeof
+ * 2n.unary-operator -> & | * | + | - | ~ | !
+ * 2n.postfix-expression -> primary-expression
+ * | primary-expression ++
+ * | primary-expression --
+ * | primary-expression . identifier
+ * | primary-expression -> identifier
+ * | primary-expression [ expression ]
+ * | primary-expression { [ expression ] | . identifier | -> identifier | ++ | -- }
+ * 暂不支持函数指针
+ * 30.primary-expression −> identifier | constant | ( expression ) | call-function
  * 3n.variable −> ID [ “[” NUM “]” | . ID ]
  * 3n.constant -> NUM | CHAR | STR
  * 31.call-function −> ID ( [ argument-list ] )
@@ -67,11 +89,17 @@ static void expect_type(int type);
 static bool match(char *str);
 static bool match_type(int type);
 static int get_op_type(char *op);
+static int get_unary_op_type(char *op);
 
 static Node *program();
 static Node *declaration_list();
 static Node *declaration();
 static Node *variable_declaration();
+static Vector *init_declarator_list();
+static Node *init_declarator();
+static Node *declarator();
+static Node *initializer();
+
 static Node *variable_declarator();
 static Node *type_specifier();
 static Node *struct_specifier();
@@ -99,14 +127,15 @@ static Node *relational_expression();
 static Node *additive_expression();
 static Node *multiplicative_expression();
 static Node *unary_expression();
+static Node *postfix_expression();
 static Node *primary_expression();
 static Node *variable();
 static Node *call_function();
 static Vector *argument_list();
 static Node *constant();
-static Node *function_body();
 
 static Map *op_map;
+static Map *unary_op_map;
 
 void next_token () {
     current_token = current_token->next;
@@ -130,9 +159,28 @@ static void init_op_map() {
     map_puti(op_map, "=", OP_ASSIGN);
 }
 
+static void init_unary_op_map() {
+    unary_op_map = new_map();
+    map_puti(unary_op_map, "!", OP_NOT);
+    map_puti(unary_op_map, "~", OP_BITNOT);
+    map_puti(unary_op_map, "&", OP_ADDR);
+    map_puti(unary_op_map, "*", OP_DEREF);
+    map_puti(unary_op_map, "+", OP_PLUS);
+    map_puti(unary_op_map, "-", OP_MINUS);
+    map_puti(unary_op_map, "++", OP_INC);
+    map_puti(unary_op_map, "--", OP_DEC);
+    map_puti(unary_op_map, ".", OP_MEMBER);
+    map_puti(unary_op_map, "->", OP_MEMBER);
+}
+
 static int get_op_type(char *op) {
     if (!op_map) init_op_map();
     return map_geti(op_map, op, -1);
+}
+
+static int get_unary_op_type(char *op) {
+    if (!unary_op_map) init_unary_op_map();
+    return map_geti(unary_op_map, op, -1);
 }
 
 Program *parse(Token *tokens)
@@ -164,15 +212,13 @@ static void expect(char *str) {
 }
 
 static bool match(char *str) {
-    Token *t = current_token;
-    if (strcmp(t->value, str) == 0) {
+    if (strcmp(current_token->value, str) == 0) {
         return true;
     }
     return false;
 }
 
 static bool match_type(int type) {
-    Token *t = current_token;
     if (current_token->type == type) {
         return true;
     }
@@ -181,7 +227,6 @@ static bool match_type(int type) {
 
 static void expect_type(int type) {
     if (current_token->type == type) {
-        printf("parse success: %s\n", current_token->value);
         current_token = current_token->next;
         return;
     }
@@ -227,34 +272,108 @@ static Node *declaration() {
 */
 static Node *variable_declaration() {
     /* type_specifier */
-    Token *tok_bak = &(*current_token);
-    Node *type_specifier_node = type_specifier();
-    if (type_specifier_node == NULL) {
-        current_token = tok_bak;
+    Token *bak = &(*current_token);
+    Node *type_spec = type_specifier();
+    if (type_spec == NULL) {
+        current_token = bak;
         return NULL;
     }
+
     Node *node = new_node("VariableDeclaration", ND_VAR_DECL);
-    node->decl_type = type_specifier_node->decl_type;
-    Node *var_declarator = variable_declarator();
-    if (var_declarator == NULL) {
-        return NULL;
+    node->decl_type = type_spec->decl_type;
+    node->declarators = init_declarator_list();
+
+    for (int i = 0;i < node->declarators->len;i++) {
+        Node *decl = node->declarators->data[i];
+        decl->decl_type = node->decl_type;
     }
+    
+    // Node *var_declarator = variable_declarator();
+    // if (var_declarator == NULL) {
+    //     return NULL;
+    // }
 
-    var_declarator->decl_type = node->decl_type;
+    // var_declarator->decl_type = node->decl_type;
 
-    vec_push(node->declarators, var_declarator);
+    // vec_push(node->declarators, var_declarator);
 
-    while (match(",")) {
-        next_token();
-        Node *new_declarator = variable_declarator();
+    // while (match(",")) {
+    //     next_token();
+    //     Node *new_declarator = variable_declarator();
 
-        new_declarator->decl_type = node->decl_type;
+    //     new_declarator->decl_type = node->decl_type;
 
-        vec_push(node->declarators, new_declarator);
-    }
+    //     vec_push(node->declarators, new_declarator);
+    // }
     /* ; */
     expect(";");
     return node;
+}
+
+static Vector *init_declarator_list() {
+    Vector *init_decl_list = new_vec();
+
+    vec_push(init_decl_list, init_declarator());
+
+    while(match(",")) {
+        next_token();
+        vec_push(init_decl_list, init_declarator());
+    }
+
+    return init_decl_list;
+}
+
+static Node *init_declarator() {
+    Node *decl = declarator();
+    if (match("=")) {
+        next_token();
+        decl->init = initializer();
+    }
+    return decl;
+}
+
+static Node *declarator() {
+    Node *node = new_node("VariableDeclarator", ND_VAR_DECLARATOR);
+    if (match("*")) {
+        next_token();
+        node->is_pointer = true;
+    }
+
+    Token *tok = &(*current_token);
+    expect_type(IDENTIFIER);
+
+    node->id = tok;
+
+    if (match("[")) {
+        next_token();
+        node->is_array = true;
+        if (match_type(NUMBER)) {
+            node->len = str_to_int(current_token->value);
+            next_token();
+        }
+        expect("]");
+    }
+    return node;
+}
+
+static Node *initializer() {
+    if (match("{")) {
+        next_token();
+        Node *node = new_node("ArrayInit", ND_ARR_INIT);
+        int count = 0;
+        while (match_type(NUMBER) || match_type(CHARACTER) || match_type(STRING)) {
+            count++;
+            vec_push(node->args, constant());
+            if (match(",")) {
+                next_token();
+                continue;
+            }
+        }
+        expect("}");
+        node->len = count;
+        return node;
+    }
+    else return assignment_expression();
 }
 
 /**
@@ -391,40 +510,35 @@ static Vector *parameters() {
 /* 10.parameter-list -> parameter { , parameter } */
 static Vector *parameter_list() {
     Vector *params = new_vec();
-    Node *param = parameter();
-    if (param == NULL) {
-        return NULL;
-    }
-    else {
-        vec_push(params, param);
-    }
+    vec_push(params, parameter());    
+        
     while (match(",")) {
         next_token();
-        Node *new_param = parameter();
-        if (new_param == NULL) {
-            printf("Error: missing function param;");
-            exit(0);
-        }
-        vec_push(params, new_param);
+        vec_push(params, parameter());
     }
+
     return params;
 }
 
-/* 11.parameter −> type-specifier ID [ “[” “]” ] */
+/* 11.parameter −> type-specifier [ "*" ] ID [ “[” “]” ] */
 static Node *parameter() {
-    Node *type_decl = type_specifier();
-    Token *id = NULL;
-    if (match_type(IDENTIFIER)) {
-        id = &(*current_token);
-        next_token();
-    }
     Node *param = new_node("FunctionParam", ND_FUNC_PARAM);
+    Node *type_decl = type_specifier();
+    if (match("*")) {
+        next_token();
+        param->is_pointer = true;
+    }
+
+    Token *id = &(*current_token);
+    expect_type(IDENTIFIER);
+    
     param->id = id;
     param->decl_type = type_decl->decl_type;
     if (match("[")) {
         next_token();
         expect("]");
         param->is_array = true;
+        param->len = 1;
     }
     return param;
 }
@@ -801,10 +915,6 @@ static Node *assignment_expression() {
     Node *left = conditional_expression();
 
     while (match("=")) {
-        if (left->node_type != ND_IDENT) {
-            printf("left part in assignment expression must be a valid variable.");
-            exit(1);
-        }
         Token *op = &(*current_token);
         next_token();
 
@@ -1007,14 +1117,14 @@ static Node *additive_expression() {
  * 如何处理连加 / 连乘
 */
 static Node *multiplicative_expression() {
-    Node *left = primary_expression();
+    Node *left = unary_expression();
     if (left == NULL) {
         return NULL;
     }
     while (match("*") || match("/") || match("%")) {
         Token *op = &(*current_token);
         next_token();
-        Node *right = primary_expression();
+        Node *right = unary_expression();
         if (right != NULL) {
             Node *left_bak = left;
             left = new_node("binaryExpr", ND_BINARY_EXPR);
@@ -1025,24 +1135,78 @@ static Node *multiplicative_expression() {
         }
     }
     return left;
-    /**
-     * a * b * c 
-     * a left b right
-     * new node (a * b) binary expr
-     * (a * b) left c right
-     * new node (a * b) * c binary expr
-    */
+}
+
+static Node *unary_expression() {
+    if (match("++")
+    || match("--")
+    || match("&")
+    || match("*")
+    || match("+")
+    || match("-")
+    || match("~")
+    || match("!")
+    ) {
+        Token *op = &(*current_token);
+        next_token();
+        Node *node = new_node("UnaryExpression", ND_UNARY_EXPR);
+        node->op = op;
+        node->is_prefix = true;
+        node->body = unary_expression();
+        node->op_type = get_unary_op_type(op->value);
+        return node;
+    }
+    else return postfix_expression();
+}
+static Node *postfix_expression() {
+    Node *node = primary_expression();
+
+    while (match("++")
+        || match("--")
+        || match("[")
+        || match(".")
+        || match("->")
+    ) {
+        Token *op = &(*current_token);
+        Node *bak = node;
+
+        node = new_node("UnaryExpression", ND_UNARY_EXPR);
+        node->body = bak;
+        node->op = op;
+        node->is_prefix = false;
+
+        if (match("++") || match("--")) {
+            next_token();
+            node->op_type = get_unary_op_type(op->value);
+        }
+        else if (match(".") || match("->")) {
+            next_token();
+            node->op_type = get_unary_op_type(op->value);
+        }
+        else if (match("[")) {
+            next_token();
+            Node *expr = expression();
+            node->expression = expr;
+            node->op_type = OP_ARR_MEMBER;
+            expect("]");
+        }
+    }
+    return node;
 }
 
 /**
- * 30.primary-expression −> variable | constant | ( expression ) | call-function
+ * 30.primary-expression −> ID | constant | ( expression ) | call-function
 */
 static Node *primary_expression() {
     if (current_token && current_token->next && strcmp(current_token->next->value, "(") == 0) {
         return call_function();
     }
     if (match_type(IDENTIFIER)) {
-        return variable();
+        Token *id = &(*current_token);
+        next_token();
+        Node *node = new_node("Identifier", ND_IDENT);
+        node->id = id;
+        return node;
     }
     else if (match_type(NUMBER) || match_type(CHARACTER) || match_type(STRING)) {
         return constant();

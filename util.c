@@ -263,6 +263,8 @@ Function *new_func() {
 Var *new_var() {
     Var *var = malloc(sizeof(Var));
     var->vals = new_vec();
+    var->init = NULL;
+    var->offset = 0;
     return var;
 }
 
@@ -334,10 +336,21 @@ void printNode(Node *node, int tabs) {
     printf("%s\n", node->type_name); // 公共属性 type_name
     switch(node->node_type) {
         case ND_SEQUENCE_EXPR:
-            printTab(tabs + 1);
             for (int i = 0;i < node->exprs->len;i++) {
                 printNode(node->exprs->data[i], tabs + 1);
             }
+            break;
+        case ND_ARR_INIT:
+            for (int i = 0;i < node->args->len;i++) {
+                printNode(node->args->data[i], tabs + 1);
+            }
+            break;
+        case ND_UNARY_EXPR:
+            printTab(tabs + 1);
+            printf("op: %s\n", node->op->value);
+            printTab(tabs + 1);
+            printf("is_prefix: %s\n", (node->is_prefix) ? "true" : "false");
+            printNode(node->body, tabs + 2);
             break;
         case ND_BINARY_EXPR:
             printTab(tabs + 1);
@@ -430,10 +443,14 @@ void printNode(Node *node, int tabs) {
             printNode(node->body, tabs + 2);
             break;
         case ND_FUNC_PARAM:
-            printTab(tabs + 1);
-            printf("id: %s\n", node->id->value);
-            break;
-        case ND_IDENT:
+            if (node->is_array) {
+                printTab(tabs + 1);
+                printf("Array\n");
+            }
+            if (node->is_pointer) {
+                printTab(tabs + 1);
+                printf("Pointer\n");
+            }
             printTab(tabs + 1);
             printf("id: %s\n", node->id->value);
             break;
@@ -498,6 +515,10 @@ void printNode(Node *node, int tabs) {
             printf("test:\n");
             printNode(node->test, tabs + 2);
             break;
+        case ND_IDENT:
+            printTab(tabs + 1);
+            printf("id: %s\n", node->id->value);
+            break;
         case ND_NUM:
             printTab(tabs + 1);
             printf("value: %s\n", node->tok->value);
@@ -517,10 +538,6 @@ void printVar(Node *node) {
     printf("type: %d\n", node->decl_type);
 }
 
-void printFunction(Node *node) {
-
-}
-
 void printProgram(Program *prog) {
     if (prog && prog->gvars && prog->gvars->len) {
         printf("Global Variables:\n");
@@ -534,6 +551,47 @@ void printProgram(Program *prog) {
     }
 }
 
+int str_to_int(char *str) {
+    int len = strlen(str);
+    int count = 0;
+    int temp = 1;
+    for (int i = len - 1;i >= 0;i--) {
+        count += (temp * ((int)str[i] - 48));
+        temp *= 10;
+    }
+    return count;
+}
+
+int get_size(int type) {
+    switch (type) {
+        case CHAR:
+            return 1;
+        case INT:
+            return 4;
+        default:
+            return 0;
+    }
+}
+
+char *get_size_name(int size) {
+    switch (size) {
+        case 1:
+            return ".byte";
+        case 4:
+            return ".word";
+        default:
+            return NULL;
+    }
+}
+
+int compute_var_size(Var *var) {
+    int size = get_size(var->type);
+    size = (size < 4) ? 4 :size;
+    if (var->is_pointer) size = 8;
+    if (var->is_array) return size * var->len;
+    return size;
+}
+
 // 将语法树结构转换为更易处理的var + function
 Program *tree_to_prog(Program *prog) {
     Program *p = new_prog();
@@ -545,11 +603,26 @@ Program *tree_to_prog(Program *prog) {
             var->name = declarator->id->value;
             var->type = declarator->decl_type;
             var->is_array = declarator->is_array;
-            // if (var->is_array) var->len = declarator->len;
+            var->len = declarator->len;
+            var->is_pointer = declarator->is_pointer;
             var->init = declarator->init;
-            var->offset = 0;
             var->is_gval = true;
-
+            if (var->is_array) {
+                if (var->init) {
+                    var->len = var->init->len;
+                }
+                else var->len = declarator->len;
+            }
+            else {
+                var->len = 1;
+            }
+            if (var->is_pointer) {
+                var->size = 8;
+            }
+            else {
+                var->size = (get_size(var->type) > 4) ? get_size(var->type) : 4;
+            }
+            var->memory = compute_var_size(var);
             vec_push(p->gvars, var);
         }
     }
@@ -569,10 +642,25 @@ Program *tree_to_prog(Program *prog) {
                     var->name = declarator->id->value;
                     var->type = declarator->decl_type;
                     var->is_array = declarator->is_array;
-                    // if (var->is_array) var->len = declarator->len;
+                    var->is_pointer = declarator->is_pointer;
                     var->init = declarator->init;
-                    var->offset = 0;
                     var->is_gval = false;
+                    if (var->is_array) {
+                        if (var->init) {
+                            var->len = var->init->len;
+                        }
+                        else var->len = declarator->len;
+                    }
+                    else {
+                        var->len = 1;
+                    }
+                    if (var->is_pointer) {
+                        var->size = 8;
+                    }
+                    else {
+                        var->size = (get_size(var->type) > 4) ? get_size(var->type) : 4;
+                    }
+                    var->memory = compute_var_size(var);
                     vec_push(fn->lvars, var);
                 }
             }
@@ -581,11 +669,17 @@ Program *tree_to_prog(Program *prog) {
                 Node *param = func->params->data[i];
                 Var *var = new_var();
                 var->name = param->id->value;
-                var->init = NULL;
-                var->offset = 0;
                 var->is_array = param->is_array;
+                var->is_pointer = param->is_pointer;
                 var->type = param->decl_type;
                 var->is_gval = false;
+                if (var->is_pointer || var->is_array) {
+                    var->size = 8;
+                }
+                else {
+                    var->size = (get_size(var->type) > 4) ? get_size(var->type) : 4;
+                }
+                var->memory = compute_var_size(var);
                 vec_push(fn->params, var);
             }
 
