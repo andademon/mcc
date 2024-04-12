@@ -135,13 +135,14 @@ enum {
     ND_PROGRAM
 };
 
+/* base type */
 enum {
     VOID = 0,
     CHAR,
     INT,
-    STRUCT
 };
 
+/* op_type */
 enum {
     OP_ADD = 0,   // +
     OP_SUB,       // -
@@ -266,23 +267,33 @@ typedef struct {
 
 Function *new_func();
 
+enum {
+    POINTER_TO,
+    ARRAY_OF,
+    FUNCTION_RETURN,
+};
+
 typedef struct {
+    int dtype;
+    struct DerivedType *child;
+} DerivedType;
+
+typedef struct {
+    // 基本属性
     char *name;
     int type;
-    char *data;
-
-    int offset; // offset from fp pointer
-    int size; // type size in memory
-    int memory; // memory size
     bool is_array;
     bool is_pointer;
     bool is_gval;
-
-    // if is array
-    int len;
-    Vector *vals;
-    
+    bool is_param;
+    DerivedType derived_type;
+    int len; // if is array array.length else 1
     Node *init;
+
+    // 计算属性，且有计算顺序要求
+    int type_size; // base type size
+    int memory_size; // memory size( such as array.memory_size = type_size * len, pointer.memory_size = 8 )    
+    int offset; // offset from fp pointer
 } Var;
 
 Var *new_var();
@@ -303,11 +314,11 @@ struct SymbolTable *createSymbolTable(int scopeLevel, struct SymbolTable *parent
 struct SymbolTable *enterScope(struct SymbolTable *parent);
 struct SymbolTable *exitScope(struct SymbolTable *current);
 void insert(struct SymbolTable *node, char *key, void *val);
+void *lookup_current(struct SymbolTable *node, char *key);
 void *lookup(struct SymbolTable *node, char *name);
 void sema_error(char *msg);
 struct SymbolTable *buildSymbolTable(Program *prog);
 void sema(Program *prog);
-void printSymbolTable(SymbolTable *table, int tabs);
 
 // codegen.c
 
@@ -377,16 +388,18 @@ void printTab(int num);
 void printToken(Token *token);
 void printTokenList(Token *tokens);
 void printNode(Node *node, int tabs);
-void printVar(Node *node);
 void printProgram(Program *prog);
-
-// Reg *new_reg();
+void printSymbolTable(SymbolTable *table, int tabs);
 
 // 将语法树结构转换为更易处理的var + function
 Program *tree_to_prog(Program *prog);
 int str_to_int(char *str);
-int get_size(int type);
+int get_type_size(int type);
 char *get_size_name(int size);
-int compute_var_size(Var *var);
+int compute_var_memory_size(Var *var);
+char *get_base_type_name(int type);
+char *get_access_unit(int size);
+// char *get_load_unit(int size);
+// char *get_store_unit(int size);
 
 #endif

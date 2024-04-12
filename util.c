@@ -262,7 +262,6 @@ Function *new_func() {
 
 Var *new_var() {
     Var *var = malloc(sizeof(Var));
-    var->vals = new_vec();
     var->init = NULL;
     var->offset = 0;
     return var;
@@ -533,11 +532,6 @@ void printNode(Node *node, int tabs) {
     }
 }
 
-void printVar(Node *node) {
-    printf("");
-    printf("type: %d\n", node->decl_type);
-}
-
 void printProgram(Program *prog) {
     if (prog && prog->gvars && prog->gvars->len) {
         printf("Global Variables:\n");
@@ -563,8 +557,9 @@ int str_to_int(char *str) {
     return count;
 }
 
-int get_size(int type) {
+int get_type_size(int type) {
     switch (type) {
+        case VOID:
         case CHAR:
             return 1;
         case INT:
@@ -580,17 +575,20 @@ char *get_size_name(int size) {
             return ".byte";
         case 4:
             return ".word";
+        case 8:
+            return ".dword";
         default:
-            return NULL;
+            printf("unknown size: %d\n", size);
+            exit(1);
     }
 }
 
-int compute_var_size(Var *var) {
-    int size = get_size(var->type);
-    size = (size < 4) ? 4 :size;
-    if (var->is_pointer) size = 8;
-    if (var->is_array) return size * var->len;
-    return size;
+int compute_var_memory_size(Var *var) {
+    int type_size = get_type_size(var->type);
+    if (var->is_pointer) return 8;
+    if (var->is_array && var->is_param) return 8;
+    if (var->is_array) return type_size * var->len;
+    return type_size;
 }
 
 // 将语法树结构转换为更易处理的var + function
@@ -608,6 +606,7 @@ Program *tree_to_prog(Program *prog) {
             var->is_pointer = declarator->is_pointer;
             var->init = declarator->init;
             var->is_gval = true;
+            var->is_param = false;
             if (var->is_array) {
                 if (var->init) {
                     var->len = var->init->len;
@@ -617,13 +616,14 @@ Program *tree_to_prog(Program *prog) {
             else {
                 var->len = 1;
             }
-            if (var->is_pointer) {
-                var->size = 8;
-            }
-            else {
-                var->size = (get_size(var->type) > 4) ? get_size(var->type) : 4;
-            }
-            var->memory = compute_var_size(var);
+            // if (var->is_pointer) {
+            //     var->type_size = 8;
+            // }
+            // else {
+            //     var->type_size = (get_type_size(var->type) > 4) ? get_type_size(var->type) : 4;
+            // }
+            var->type_size = get_type_size(var->type);
+            var->memory_size = compute_var_memory_size(var);
             vec_push(p->gvars, var);
         }
     }
@@ -646,6 +646,7 @@ Program *tree_to_prog(Program *prog) {
                     var->is_pointer = declarator->is_pointer;
                     var->init = declarator->init;
                     var->is_gval = false;
+                    var->is_param = false;
                     if (var->is_array) {
                         if (var->init) {
                             var->len = var->init->len;
@@ -655,13 +656,8 @@ Program *tree_to_prog(Program *prog) {
                     else {
                         var->len = 1;
                     }
-                    if (var->is_pointer) {
-                        var->size = 8;
-                    }
-                    else {
-                        var->size = (get_size(var->type) > 4) ? get_size(var->type) : 4;
-                    }
-                    var->memory = compute_var_size(var);
+                    var->type_size = get_type_size(var->type);
+                    var->memory_size = compute_var_memory_size(var);
                     vec_push(fn->lvars, var);
                 }
             }
@@ -674,13 +670,15 @@ Program *tree_to_prog(Program *prog) {
                 var->is_pointer = param->is_pointer;
                 var->type = param->decl_type;
                 var->is_gval = false;
-                if (var->is_pointer || var->is_array) {
-                    var->size = 8;
-                }
-                else {
-                    var->size = (get_size(var->type) > 4) ? get_size(var->type) : 4;
-                }
-                var->memory = compute_var_size(var);
+                var->is_param = true;
+                // if (var->is_pointer || var->is_array) {
+                //     var->type_size = 8;
+                // }
+                // else {
+                //     var->type_size = (get_type_size(var->type) > 4) ? get_type_size(var->type) : 4;
+                // }
+                var->type_size = get_type_size(var->type);
+                var->memory_size = compute_var_memory_size(var);
                 vec_push(fn->params, var);
             }
 
@@ -688,4 +686,58 @@ Program *tree_to_prog(Program *prog) {
         vec_push(p->funcs, fn);
     }
     return p;
+}
+
+char *get_base_type_name(int type) {
+    switch (type) {
+        case VOID: return "void";
+        case CHAR: return "char";
+        case INT: return "int";
+        default:
+            printf("unknown base type: %s\n", type);
+            exit(1);
+    }
+}
+
+void printSymbolTable(SymbolTable *table, int tabs) {
+    printTab(tabs);
+    printf("scopeLevel: %d\n", table->scopeLevel);
+    for (int i = 0;i < table->entries->keys->len;i++) {
+        printTab(tabs);
+        Var *var = table->entries->vals->data[i];
+        if (!var) continue;
+        printf("%s\n", var->name);
+        {
+            printTab(tabs + 1);
+            printf("base_type: %s\n", get_base_type_name(var->type));
+            printTab(tabs + 1);
+            printf("is_param: %s\n", (var->is_param) ? "true" : "false");
+            printTab(tabs + 1);
+            printf("is_array: %s\n", (var->is_array) ? "true" : "false");
+            if (var->is_array) {
+                printTab(tabs + 1);
+                printf("array_len: %d\n", var->len);
+            }
+            printTab(tabs + 1);
+            printf("is_pointer: %s\n", (var->is_pointer) ? "true" : "false");
+            printTab(tabs + 1);
+            printf("type_size: %d\n", var->type_size);
+            printTab(tabs + 1);
+            printf("memory_size: %d\n", var->memory_size);
+        }        
+    }
+    for (int i = 0;i < table->children->len;i++) {
+        printSymbolTable(table->children->data[i], tabs + 1);
+    }
+}
+
+char *get_access_unit(int size) {
+    switch (size) {
+        case 1: return "b";
+        case 4: return "w";
+        case 8: return "d";
+        default:
+            printf("unknown access unit size: %d\n", size);
+            exit(1);
+    }
 }

@@ -23,6 +23,10 @@ void insert(SymbolTable *node, char *key, void *val) {
     map_put(node->entries, key, val);
 }
 
+void *lookup_current(SymbolTable *node, char *key) {
+    return map_get(node->entries, key);
+}
+
 void *lookup(SymbolTable *node, char *key) {
     void *val = map_get(node->entries, key);
     if (val == NULL) {
@@ -89,28 +93,6 @@ void check_type(Node *node) {
         }
         default:
             break;
-    }
-}
-
-void printSymbolTable(SymbolTable *table, int tabs) {
-    printTab(tabs);
-    printf("scopeLevel: %d\n", table->scopeLevel);
-    for (int i = 0;i < table->entries->keys->len;i++) {
-        printTab(tabs);
-        Var *var = table->entries->vals->data[i];
-        if (!var) continue;
-        printf("%s\n", table->entries->keys->data[i]);
-        printTab(tabs + 1);
-        printf("is_array: %s\n", (var->is_array) ? "true" : "false");
-        if (var->is_array) {
-            printTab(tabs + 1);
-            printf("array_len: %d\n", var->len);
-        }
-        printTab(tabs + 1);
-        printf("is_pointer: %s\n", (var->is_pointer) ? "true" : "false");        
-    }
-    for (int i = 0;i < table->children->len;i++) {
-        printSymbolTable(table->children->data[i], tabs + 1);
     }
 }
 
