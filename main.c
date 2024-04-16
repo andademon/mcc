@@ -15,9 +15,11 @@ void test() {
     // char *str = readFile("test/array.c");
     // char *str = readFile("test/pointer.c");
 
-    char *str = readFile("test/quicksort.c");
+    // char *str = readFile("test/quicksort.c");
 
     // char *str = readFile("test/complex.c");
+
+    char *str = readFile("test/MultidimensionalArray.c");
 
     printf("---Source File---\n");
     printf("%s\n", str);
