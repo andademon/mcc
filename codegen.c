@@ -769,18 +769,31 @@ static void emit(int op, Reg *r0, Reg *r1, Reg *r2) {
 static Reg *gen_lval(Node *node) {
     switch(node->node_type) {
         case ND_IDENT: {
+            // 如果当前是ident,则有两种情况:
+            // 全局变量(变量/函数/指针/数组),均是从标签加载地址
+            // 局部变量
+            //      1.是函数参数
+            //      2.是函数本地变量
             // 不考虑数组情况，数组情况在ND_UNARY_EXPR情况中处理，只考虑基本类型的变量
             Var *var = lookup(currentScope, node->id->value);
             if (!var) {
                 printf("no var found: %s\n", node->id->value);
             }
             Reg *r0 = new_reg();
+            // 全局变量,直接从标签加载地址
             if (var->is_gval) {
                 printf("la t%d,%s\n", r0->vn, var->name);
             }
             else {
-                printf("addi t%d,s0,%d\n", r0->vn, var->offset);
-                // printf("ld t%d,%d(s0)\n", r0->vn, var->offset);
+                // 局部变量,如果是指针且函数参数(说明变量不在此声明,var->offset为间接地址)
+                // 此时真正的地址在var->offset(s0)内
+                if (var->type->kind == TY_POINTER_TO && var->is_param) {
+                    printf("ld t%d,%d(s0)\n", r0->vn, var->offset);
+                }
+                // 局部变量,且声明在此函数内,var->offset为直接地址
+                else {
+                    printf("addi t%d,s0,%d\n", r0->vn, var->offset);
+                }
             }
             return r0;
         }

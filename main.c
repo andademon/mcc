@@ -12,10 +12,10 @@ void test() {
     // char *str = readFile("test/for.c");
     // char *str = readFile("test/if-else.c");
     // char *str = readFile("test/switch-case.c");
-    char *str = readFile("test/array.c");
+    // char *str = readFile("test/array.c");
     // char *str = readFile("test/pointer.c");
 
-    // char *str = readFile("test/quicksort.c");
+    char *str = readFile("test/quicksort.c");
 
     // char *str = readFile("test/complex.c");
 
