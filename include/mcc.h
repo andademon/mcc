@@ -42,6 +42,10 @@ void map_puti(Map *map, char *key, int val);
 void *map_get(Map *map, char *key);
 int map_geti(Map *map, char *key, int default_);
 
+typedef struct Type Type;
+typedef struct Node Node;
+typedef struct SymbolTable SymbolTable;
+
 /* (Alpha | _)(Alpha | Digit | _)* */
 /* (Digit)(Digit)* */
 /* "\"(* except for \")\"" */
@@ -95,22 +99,28 @@ char *str_pop(char *str);
 enum {
     ND_NULL_EXPR, // Do nothing
 
-    ND_STMT_LIST, // stmts
-    ND_DECL_LIST, // decls
+    // ND_DECL_LIST,
+    // ND_STMT_LIST,
 
     ND_BLOCK,     // { ... }
     ND_CASE,      // case
     ND_GOTO_STMT,      // "goto"
+    ND_LABEL,
     ND_CONTINUE_STMT, // continue
     ND_BREAK_STMT, // break
     ND_RETURN_STMT,    // return
   
     ND_VAR_DECL, // Variable declaration
-    ND_TYPE_DECL, // type specifier
+    ND_TYPE_SPEC, // type specifier
     ND_VAR_DECLARATOR,
 
+    // ND_DCL,
+    // ND_DIR_DCL,
+    // ND_PTR,
+    // ND_ARR_OF,
+    // ND_FUNC_RT,
+
     ND_FUNC_DECL, // Function decl
-    ND_FUNCALL,   // Function call
     ND_FUNC_PARAM,
 
     ND_IF_STMT,
@@ -118,7 +128,6 @@ enum {
     ND_WHILE_STMT,
     ND_DO_WHILE,
     ND_FOR_STMT,
-    ND_JUMP_STMT,
     ND_EXPR_STMT, // Expression statement
 
     ND_UNARY_EXPR, // unary expression
@@ -130,51 +139,94 @@ enum {
     ND_CHAR,
     ND_STR,
     ND_IDENT,
-    ND_ARR_INIT,  // array init
-    ND_CAST,      // Type cast
-    ND_PROGRAM
-};
+    ND_CALLEXPR,   // Function call
 
-/* base type */
-enum {
-    VOID = 0,
-    CHAR,
-    INT,
+    ND_ARR_EXPR,  // array init
+    ND_PROGRAM
 };
 
 /* op_type */
 enum {
+    // OP_COND = 0,      // ?:
+
     OP_ADD = 0,   // +
     OP_SUB,       // -
     OP_MUL,       // *
     OP_DIV,       // /
-    OP_PLUS,      // unary +
-    OP_MINUS,     // unary -
-    OP_INC,       // increment ++
-    OP_DEC,       // decrement --
     OP_MOD,       // %
-    OP_BITAND,    // &
-    OP_BITOR,     // |
-    OP_BITXOR,    // ^
-    OP_SHL,       // <<
-    OP_SHR,       // >>
     OP_EQ,        // ==
     OP_NE,        // !=
     OP_LT,        // <
     OP_LE,        // <=
     OP_GT,       // >
     OP_GE,       // >=
+    OP_LOGAND,    // &&
+    OP_LOGOR,     // ||
     OP_ASSIGN,    // =
-    OP_COND,      // ?:
-    OP_COMMA,     // ,
+
+    OP_PLUS,      // unary +
+    OP_MINUS,     // unary -
+    OP_INC,       // increment ++
+    OP_DEC,       // decrement --
     OP_MEMBER,    // . (struct member access)
     OP_ARR_MEMBER,  // arr [ expr ] array member access
     OP_ADDR,      // unary &
     OP_DEREF,     // unary *
     OP_NOT,       // !
-    OP_BITNOT,    // ~
-    OP_LOGAND,    // &&
-    OP_LOGOR,     // ||
+    
+    // OP_BITAND,    // &
+    // OP_BITOR,     // |
+    // OP_BITXOR,    // ^
+    // OP_SHL,       // <<
+    // OP_SHR,       // >>
+    
+    
+
+    // OP_COMMA,     // ,
+    // OP_BITNOT,    // ~
+    
+};
+
+typedef enum {
+    TY_NULL = 0,
+    TY_VOID,
+    TY_CHAR,
+    TY_INT,
+    TY_POINTER_TO,
+    TY_ARRAY_OF,
+    TY_FUNC,
+    TY_STRUCT,
+} TypeKind;
+
+struct Type {
+    int kind;
+    int size;           // sizeof() value // memory size
+    int align;          // alignment
+    Type *origin;       // for type compatibility check
+
+    // Pointer-to or array-of type. We intentionally use the same member
+    // to represent pointer/array duality in C.
+    //
+    // In many contexts in which a pointer is expected, we examine this
+    // member instead of "kind" member to determine whether a type is a
+    // pointer or not. That means in many contexts "array of T" is
+    // naturally handled as if it were "pointer to T", as required by
+    // the C spec.
+    Type *base;
+
+    // Declaration
+    char *name;
+
+    // Array
+    int array_len;
+    // Function type
+    // Type *return_type;
+    //   Type *params;
+    //   Type *next;
+    Vector *params;
+
+    // struct
+    Vector *members;
 };
 
 typedef struct Node {
@@ -183,15 +235,17 @@ typedef struct Node {
     char *value;
 
     Token *tok;
+    char *name;
 
     // operator
     int op_type;
 
     // type decl
-    int decl_type;
+    int base_type;
     bool is_array;
     bool is_pointer;
     int len;
+    Type *type;
 
     // func decl
     struct Node *decl;
@@ -231,6 +285,7 @@ typedef struct Node {
     struct Node *update;
     struct Node *discriminant;
     struct Node *return_value;
+    struct Node *callee;
 
     Vector *decls;
     Vector *stmts;
@@ -240,6 +295,8 @@ typedef struct Node {
     Vector *declarators;
 
     Vector *exprs; // sequence expression
+
+    SymbolTable *scope; // 用于ND_BLOCK语义分析和代码生成
 } Node;
 
 Node *new_node(char *type_name, int node_type);
@@ -267,12 +324,6 @@ typedef struct {
 
 Function *new_func();
 
-enum {
-    POINTER_TO,
-    ARRAY_OF,
-    FUNCTION_RETURN,
-};
-
 typedef struct {
     int dtype;
     struct DerivedType *child;
@@ -281,18 +332,19 @@ typedef struct {
 typedef struct {
     // 基本属性
     char *name;
-    int type;
-    bool is_array;
-    bool is_pointer;
+    // int type;
+    // int type;
+    // bool is_array;
+    // bool is_pointer;
     bool is_gval;
     bool is_param;
-    DerivedType derived_type;
-    int len; // if is array array.length else 1
+    Type *type;
+    // int len; // if is array array.length else 1
     Node *init;
 
     // 计算属性，且有计算顺序要求
-    int type_size; // base type size
-    int memory_size; // memory size( such as array.memory_size = type_size * len, pointer.memory_size = 8 )    
+    // int type_size; // base type size
+    // int memory_size; // memory size( such as array.memory_size = type_size * len, pointer.memory_size = 8 )    
     int offset; // offset from fp pointer
 } Var;
 
@@ -304,7 +356,8 @@ Program *parse(Token *tokens);
 
 /* 符号表 */
 typedef struct SymbolTable {
-    int scopeLevel;
+    int scopeLevel; // 作用域层级(全局作用域层级为0)
+    int scopeId; // 当前作用域在parent作用域中的id(0开始,递增)
     Map *entries;
     struct SymbolTable *parent;
     Vector *children;
@@ -318,11 +371,11 @@ void *lookup_current(struct SymbolTable *node, char *key);
 void *lookup(struct SymbolTable *node, char *name);
 void sema_error(char *msg);
 struct SymbolTable *buildSymbolTable(Program *prog);
-void sema(Program *prog);
+SymbolTable *sema(Program *prog);
 
 // codegen.c
 
-void codegen(Program *prog);
+void codegen(Program *prog, SymbolTable *table);
 
 /* IR类型 */
 
@@ -401,5 +454,18 @@ char *get_base_type_name(int type);
 char *get_access_unit(int size);
 // char *get_load_unit(int size);
 // char *get_store_unit(int size);
+Type *new_type(int kind, int size, int align);
+void printType(Type *type, int tabs);
+void printFullType(Type *type, int tabs);
+void walk_stmt(Node *node, SymbolTable *table);
+void complete_type_size(Type *type);
+int compute_max_size(SymbolTable *table);
+bool is_lval(Node *node);
+bool is_compatible(Type *t1, Type *t2);
+Type *get_base(Type *type);
+Type *type_expr(Node *node, SymbolTable *table);
+void type_stmt(Node *node, SymbolTable *table);
+void check_type(Program *prog, SymbolTable *table);
+
 
 #endif

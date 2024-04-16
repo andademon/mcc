@@ -339,7 +339,7 @@ void printNode(Node *node, int tabs) {
                 printNode(node->exprs->data[i], tabs + 1);
             }
             break;
-        case ND_ARR_INIT:
+        case ND_ARR_EXPR:
             for (int i = 0;i < node->args->len;i++) {
                 printNode(node->args->data[i], tabs + 1);
             }
@@ -393,11 +393,6 @@ void printNode(Node *node, int tabs) {
         }
         case ND_CONTINUE_STMT:
             break;
-        case ND_DECL_LIST:
-            for (int i = 0;i < node->decls->len;i++) {
-                printNode(node->decls->data[i], tabs + 1);
-            }
-            break;
         case ND_EXPR_STMT:
             printNode(node->body, tabs + 1);
             break;
@@ -415,11 +410,14 @@ void printNode(Node *node, int tabs) {
             printf("body: \n");
             printNode(node->body, tabs + 2);
             break;
-        case ND_FUNCALL:
+        case ND_CALLEXPR:
+            // printTab(tabs + 1);
+            // printf("function_name:\n");
+            // printTab(tabs + 2);
+            // if (node->id) printf("%s\n", node->id->value);
             printTab(tabs + 1);
-            printf("function_name:\n");
-            printTab(tabs + 2);
-            printf("%s\n", node->id->value);
+            printf("callee:\n");
+            printNode(node->callee, tabs + 2);
             if (node->args && node->args->len > 0) {
                 printTab(tabs + 1);
                 printf("args:\n");
@@ -431,7 +429,7 @@ void printNode(Node *node, int tabs) {
             break;
         case ND_FUNC_DECL:
             printTab(tabs + 1);
-            printf("id: %s\n", node->id->value);
+            printf("id: %s\n", node->name);
             printTab(tabs + 1);
             printf("params: \n");
             for (int i = 0;i < node->params->len;i++) {
@@ -451,7 +449,7 @@ void printNode(Node *node, int tabs) {
                 printf("Pointer\n");
             }
             printTab(tabs + 1);
-            printf("id: %s\n", node->id->value);
+            printf("id: %s\n", node->name);
             break;
         case ND_IF_STMT:
             printTab(tabs + 1);
@@ -477,14 +475,9 @@ void printNode(Node *node, int tabs) {
                 printNode(node->cases->data[i], tabs + 2);
             }
             break;
-        case ND_STMT_LIST:
-            for (int i = 0;i < node->stmts->len;i++) {
-                printNode(node->stmts->data[i], tabs + 1);
-            }
-            break;
         case ND_VAR_DECL:
             printTab(tabs + 1);
-            printf("type: %d\n", node->decl_type);
+            printf("type: %d\n", node->base_type);
             printTab(tabs + 1);
             printf("declarations: \n");
             for (int i = 0;i <= node->declarators->len;i++) {
@@ -493,7 +486,7 @@ void printNode(Node *node, int tabs) {
             break;
         case ND_VAR_DECLARATOR:
             printTab(tabs + 1);
-            printf("id: %s\n", node->id->value);
+            printf("id: %s\n", node->name);
             printTab(tabs + 1);
             printf("init: \n");
             printNode(node->init, tabs + 2);
@@ -557,17 +550,17 @@ int str_to_int(char *str) {
     return count;
 }
 
-int get_type_size(int type) {
-    switch (type) {
-        case VOID:
-        case CHAR:
-            return 1;
-        case INT:
-            return 4;
-        default:
-            return 0;
-    }
-}
+// int get_type_size(int type) {
+//     switch (type) {
+//         case VOID:
+//         case CHAR:
+//             return 1;
+//         case INT:
+//             return 4;
+//         default:
+//             return 0;
+//     }
+// }
 
 char *get_size_name(int size) {
     switch (size) {
@@ -583,13 +576,13 @@ char *get_size_name(int size) {
     }
 }
 
-int compute_var_memory_size(Var *var) {
-    int type_size = get_type_size(var->type);
-    if (var->is_pointer) return 8;
-    if (var->is_array && var->is_param) return 8;
-    if (var->is_array) return type_size * var->len;
-    return type_size;
-}
+// int compute_var_memory_size(Var *var) {
+//     int type_size = get_type_size(var->type);
+//     if (var->is_pointer) return 8;
+//     if (var->is_array && var->is_param) return 8;
+//     if (var->is_array) return type_size * var->len;
+//     return type_size;
+// }
 
 // 将语法树结构转换为更易处理的var + function
 Program *tree_to_prog(Program *prog) {
@@ -599,31 +592,31 @@ Program *tree_to_prog(Program *prog) {
         for (int i = 0;i < decl->declarators->len;i++) {
             Node *declarator = decl->declarators->data[i];
             Var *var = new_var();
-            var->name = declarator->id->value;
-            var->type = declarator->decl_type;
-            var->is_array = declarator->is_array;
-            var->len = declarator->len;
-            var->is_pointer = declarator->is_pointer;
+            var->name = declarator->name;
+            var->type = declarator->type;
+            // var->type = declarator->base_type;
+            // var->is_array = declarator->is_array;
+            // var->is_pointer = declarator->is_pointer;
             var->init = declarator->init;
             var->is_gval = true;
             var->is_param = false;
-            if (var->is_array) {
-                if (var->init) {
-                    var->len = var->init->len;
-                }
-                else var->len = declarator->len;
-            }
-            else {
-                var->len = 1;
-            }
+            // if (var->is_array) {
+            //     if (var->init) {
+            //         var->len = var->init->len;
+            //     }
+            //     else var->len = declarator->len;
+            // }
+            // else {
+            //     var->len = 1;
+            // }
             // if (var->is_pointer) {
             //     var->type_size = 8;
             // }
             // else {
             //     var->type_size = (get_type_size(var->type) > 4) ? get_type_size(var->type) : 4;
             // }
-            var->type_size = get_type_size(var->type);
-            var->memory_size = compute_var_memory_size(var);
+            // var->type_size = get_type_size(var->type);
+            // var->memory_size = compute_var_memory_size(var);
             vec_push(p->gvars, var);
         }
     }
@@ -631,7 +624,7 @@ Program *tree_to_prog(Program *prog) {
         Node *func = prog->funcs->data[i];
 
         Function *fn = new_func();
-        fn->name = func->id->value;
+        fn->name = func->name;
         fn->node = func;
         // fn->lvars = func->body->decls;
         if (func->body->decls->len)
@@ -640,24 +633,25 @@ Program *tree_to_prog(Program *prog) {
                 for (int j = 0;j < decl->declarators->len;j++) {
                     Node *declarator = decl->declarators->data[j];
                     Var *var = new_var();
-                    var->name = declarator->id->value;
-                    var->type = declarator->decl_type;
-                    var->is_array = declarator->is_array;
-                    var->is_pointer = declarator->is_pointer;
+                    var->name = declarator->name;
+                    var->type = declarator->type;
+                    // var->type = declarator->base_type;
+                    // var->is_array = declarator->is_array;
+                    // var->is_pointer = declarator->is_pointer;
                     var->init = declarator->init;
                     var->is_gval = false;
                     var->is_param = false;
-                    if (var->is_array) {
-                        if (var->init) {
-                            var->len = var->init->len;
-                        }
-                        else var->len = declarator->len;
-                    }
-                    else {
-                        var->len = 1;
-                    }
-                    var->type_size = get_type_size(var->type);
-                    var->memory_size = compute_var_memory_size(var);
+                    // if (var->is_array) {
+                    //     if (var->init) {
+                    //         var->len = var->init->len;
+                    //     }
+                    //     else var->len = declarator->len;
+                    // }
+                    // else {
+                    //     var->len = 1;
+                    // }
+                    // var->type_size = get_type_size(var->type);
+                    // var->memory_size = compute_var_memory_size(var);
                     vec_push(fn->lvars, var);
                 }
             }
@@ -665,10 +659,13 @@ Program *tree_to_prog(Program *prog) {
             for (int i = 0;i < func->params->len;i++) {
                 Node *param = func->params->data[i];
                 Var *var = new_var();
-                var->name = param->id->value;
-                var->is_array = param->is_array;
-                var->is_pointer = param->is_pointer;
-                var->type = param->decl_type;
+                var->type = param->type;
+                var->name = param->type->name;
+                // var->name = param->id->value;
+                // var->is_array = param->is_array;
+                // var->is_pointer = param->is_pointer;
+                // var->derived_type = param->type;
+                // var->type = param->base_type;
                 var->is_gval = false;
                 var->is_param = true;
                 // if (var->is_pointer || var->is_array) {
@@ -677,8 +674,8 @@ Program *tree_to_prog(Program *prog) {
                 // else {
                 //     var->type_size = (get_type_size(var->type) > 4) ? get_type_size(var->type) : 4;
                 // }
-                var->type_size = get_type_size(var->type);
-                var->memory_size = compute_var_memory_size(var);
+                // var->type_size = get_type_size(var->type);
+                // var->memory_size = compute_var_memory_size(var);
                 vec_push(fn->params, var);
             }
 
@@ -688,16 +685,16 @@ Program *tree_to_prog(Program *prog) {
     return p;
 }
 
-char *get_base_type_name(int type) {
-    switch (type) {
-        case VOID: return "void";
-        case CHAR: return "char";
-        case INT: return "int";
-        default:
-            printf("unknown base type: %s\n", type);
-            exit(1);
-    }
-}
+// char *get_base_type_name(int type) {
+//     switch (type) {
+//         case VOID: return "void";
+//         case CHAR: return "char";
+//         case INT: return "int";
+//         default:
+//             printf("unknown base type: %s\n", type);
+//             exit(1);
+//     }
+// }
 
 void printSymbolTable(SymbolTable *table, int tabs) {
     printTab(tabs);
@@ -708,22 +705,29 @@ void printSymbolTable(SymbolTable *table, int tabs) {
         if (!var) continue;
         printf("%s\n", var->name);
         {
+            printType(var->type, tabs + 1);
             printTab(tabs + 1);
-            printf("base_type: %s\n", get_base_type_name(var->type));
-            printTab(tabs + 1);
-            printf("is_param: %s\n", (var->is_param) ? "true" : "false");
-            printTab(tabs + 1);
-            printf("is_array: %s\n", (var->is_array) ? "true" : "false");
-            if (var->is_array) {
-                printTab(tabs + 1);
-                printf("array_len: %d\n", var->len);
-            }
-            printTab(tabs + 1);
-            printf("is_pointer: %s\n", (var->is_pointer) ? "true" : "false");
-            printTab(tabs + 1);
-            printf("type_size: %d\n", var->type_size);
-            printTab(tabs + 1);
-            printf("memory_size: %d\n", var->memory_size);
+            if (var->type->kind != TY_FUNC)
+                printf("offset: %d\n", var->offset);
+            // printFullType(var->derived_type, tabs + 1);
+            // printTab(tabs + 1);
+            // printFullType(var->derived_type);
+            // printf("------\n");
+            // printf("base_type: %s\n", get_base_type_name(var->type));
+            // printTab(tabs + 1);
+            // printf("is_param: %s\n", (var->is_param) ? "true" : "false");
+            // printTab(tabs + 1);
+            // printf("is_array: %s\n", (var->is_array) ? "true" : "false");
+            // if (var->is_array) {
+            //     printTab(tabs + 1);
+            //     printf("array_len: %d\n", var->len);
+            // }
+            // printTab(tabs + 1);
+            // printf("is_pointer: %s\n", (var->is_pointer) ? "true" : "false");
+            // printTab(tabs + 1);
+            // printf("type_size: %d\n", var->type_size);
+            // printTab(tabs + 1);
+            // printf("memory_size: %d\n", var->memory_size);
         }        
     }
     for (int i = 0;i < table->children->len;i++) {
@@ -740,4 +744,200 @@ char *get_access_unit(int size) {
             printf("unknown access unit size: %d\n", size);
             exit(1);
     }
+}
+
+Type *new_type(int kind, int size, int align) {
+    Type *ty = (Type *)malloc(sizeof(Type));
+    ty->kind = kind;
+    ty->size = size;
+    ty->align = align;
+    return ty;
+}
+
+bool is_compatible(Type *t1, Type *t2) {
+    if (t1->kind != t2->kind) {
+        if (t1->kind == TY_ARRAY_OF && t2->kind == TY_POINTER_TO
+            || t1->kind == TY_POINTER_TO && t2->kind == TY_ARRAY_OF);
+        else return false;
+    }
+    switch (t1->kind) {
+        case TY_VOID:
+        case TY_CHAR:
+        case TY_INT:
+            return t1->kind == t2->kind;
+        case TY_ARRAY_OF:
+        case TY_POINTER_TO: {
+            return is_compatible(t1->base, t2->base);
+        }
+        // case TY_ARRAY_OF: {
+        //     return t1->array_len == t2->array_len 
+        //             && t1->align == t2->align 
+        //             && is_compatible(t1->base, t2->base);
+        // }
+        case TY_FUNC: {
+            if (t1->params->len != t2->params->len) return false;
+            for (int i = 0;i < t1->params->len;i++) {
+                Node *n1 = t1->params->data[i];
+                Node *n2 = t2->params->data[i];
+                if (!is_compatible(n1->type, n2->type)) return false;
+            }
+            return is_compatible(t1->base, t2->base);
+        }
+    }
+}
+
+Type *get_base(Type *type) {
+    switch(type->kind) {
+        case TY_FUNC:
+        case TY_POINTER_TO:
+        case TY_ARRAY_OF: {
+            if (type->base) {
+                return get_base(type->base);
+            }
+            else return type;
+        }
+        default: {
+            printf("Unknown type: ");
+            exit(1);
+        }
+    }
+}
+
+void printType(Type *type, int tabs) {
+    switch (type->kind) {
+        case TY_VOID: {
+            printTab(tabs);
+            printf("void\n");
+            printTab(tabs + 1);
+            printf("size: %d\n", type->size);
+            break;
+        }
+        case TY_INT: {
+            printTab(tabs);
+            printf("int\n");
+            printTab(tabs + 1);
+            printf("size: %d\n", type->size);
+            break;
+        }
+        case TY_CHAR: {
+            printTab(tabs);
+            printf("char\n");
+            printTab(tabs + 1);
+            printf("size: %d\n", type->size);
+            break;
+        }
+        case TY_POINTER_TO: {
+            printTab(tabs);
+            printf("pointer\n");
+            printTab(tabs + 1);
+            printf("size: %d\n", type->size);
+            break;
+        }
+        case TY_ARRAY_OF: {
+            printTab(tabs);
+            printf("array\n");
+            printTab(tabs + 1);
+            printf("len: %d\n", type->array_len);
+            printTab(tabs + 1);
+            printf("align: %d\n", type->align);
+            printTab(tabs + 1);
+            printf("size: %d\n", type->size);
+            break;
+        }
+        case TY_FUNC: {
+            printTab(tabs);
+            printf("function\n");
+            break;
+        }
+    }
+}
+
+void printFullType(Type *type, int tabs) {
+    switch (type->kind) {
+        case TY_VOID:
+            printTab(tabs);
+            printf("void\n");
+            printf("\t%d\t%d\n", type->size, type->align);
+            break;
+        case TY_CHAR:
+            printTab(tabs);
+            printf("char\n");
+            printf("\t%d\t%d\n", type->size, type->align);
+            break;
+        case TY_INT:
+            printTab(tabs);
+            printf("int\n");
+            printf("\t%d\t%d\n", type->size, type->align);
+            break;
+        case TY_POINTER_TO:
+            printTab(tabs);
+            printf("pointer to\n");
+            printf("\t%d\t%d\n", type->size, type->align);
+            printFullType(type->base, tabs + 1);
+            break;
+        case TY_ARRAY_OF:
+            printf("array of\n");
+            printf("\t%d\t%d\t%d\n", type->size, type->align, type->array_len);
+            printFullType(type->base, tabs + 1);
+            break;
+        case TY_FUNC:
+            printf("function\n");
+            printf("params:\n");
+            for (int i = 0;i < type->params->len;i++) {
+                Node *param = type->params->data[i];
+                printFullType(param->type, tabs + 1);
+            }
+            printf("return type:\n");
+            printFullType(type->base, tabs + 1);
+            break;
+        default:
+            printf("Unknown type!\n");
+            exit(1);
+    }
+}
+
+// int get_type_size(Type *type) {
+//     switch (type->kind) {
+//         case TY_VOID: return 0;
+//         case TY_CHAR: return 1;
+//         case TY_INT: return 4;
+//         case TY_POINTER_TO: return 8;
+//         default: return 0;
+//     }
+// }
+
+void complete_type_size(Type *type) {
+    switch (type->kind) {
+        case TY_VOID:
+        case TY_CHAR:
+        case TY_INT:
+            return;
+        case TY_POINTER_TO: {
+            complete_type_size(type->base);
+            type->align = 8;
+            type->size = 8;
+            break;
+        };
+        case TY_FUNC: {
+            complete_type_size(type->base);
+            for (int i = 0;i < type->params->len;i++) {
+                Node *node = type->params->data[i];
+                complete_type_size(node->type);
+            }
+            type->size = 0;
+            type->align = 0;
+            break;
+        };
+        case TY_ARRAY_OF: {
+            complete_type_size(type->base);
+            type->align = type->base->size;
+            type->size = type->array_len * type->align;
+            break;
+        }
+    }
+}
+
+// 判断一个节点是否为左值
+bool is_lval(Node *node) {
+
 }

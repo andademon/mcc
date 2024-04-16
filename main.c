@@ -5,17 +5,19 @@ static Token *head;
 void test() {
     // char *str = readFile("test/demo.c");
     // char *str = readFile("test/hello.c");
-    char *str = readFile("test/fibonacci.c");
+    // char *str = readFile("test/fibonacci.c");
     // char *str = readFile("test/gval.c");
     // char *str = readFile("test/while.c");
     // char *str = readFile("test/do-while.c");
     // char *str = readFile("test/for.c");
     // char *str = readFile("test/if-else.c");
     // char *str = readFile("test/switch-case.c");
-    // char *str = readFile("test/array.c");
+    char *str = readFile("test/array.c");
+    // char *str = readFile("test/pointer.c");
 
     // char *str = readFile("test/quicksort.c");
 
+    // char *str = readFile("test/complex.c");
 
     printf("---Source File---\n");
     printf("%s\n", str);
@@ -29,17 +31,17 @@ void test() {
     printProgram(prog);
     
     prog = tree_to_prog(prog);
-    printf("---Semantic---\n");
-    sema(prog);
+    // printf("---Semantic---\n");
+    SymbolTable *table = sema(prog);
 
-    printf("---Codegen---\n");
-    codegen(prog);
+    // printf("---Codegen---\n");
+    codegen(prog, table);
     exit(0);
 }
 
 int main(int argc, char *argv[])
 {
-    // test();
+    test();
     if (argc < 2) {
         printf("At least two command line parameters are required. Example: ./main <filename>\n");
         exit(1);
@@ -61,10 +63,10 @@ int main(int argc, char *argv[])
         
         printf("---Semantic---\n");
         prog = tree_to_prog(prog);
-        sema(prog);
+        SymbolTable *table = sema(prog);
 
         printf("---Codegen---\n");
-        codegen(prog);
+        codegen(prog, table);
     }
     else {
         for (int i = 2;i < argc;i++) {
@@ -82,7 +84,8 @@ int main(int argc, char *argv[])
             }
             else if (!strcmp(argv[i], "-code")) {
                 prog = tree_to_prog(prog);
-                codegen(prog);
+                SymbolTable *table = sema(prog);
+                codegen(prog, table);
             }
             else {
                 printf("unknown command line arg: %s", argv[i]);
