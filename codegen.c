@@ -135,15 +135,28 @@ static void gen_gvar(Var *var) {
                 break;
             }
             case TY_ARRAY_OF: {
-                // printf("\t");
+                // 数组元素赋值,基类是直到不是数组的下一个类型
+                Type *ty = var->type;
+                while(ty->kind == TY_ARRAY_OF) {
+                    ty = ty->base;
+                }
+                
+                for (int i = 0;i < var->init->args->len;i++) {
+                    Node *arg = var->init->args->data[i];
+                    if (arg->node_type == ND_NUM) {
+                        printf("\t.word\t%s\n", arg->tok->value);
+                    }
+                    else if (arg->node_type == ND_CHAR) {
+                        printf("\t.byte\t%d\n", (int)arg->tok->value[0]);
+                    }
+                    else {
+                        printf("\t%s\t%s\n", get_access_unit(ty->align), arg->tok->value);
+                    }
+                }
                 break;
             }
         }
     }
-}
-
-static void init_array(Var *arr, Node *init) {
-
 }
 
 // 将局部变量保存在内存中，返回记录的偏移地址（Q: 偏移地址如何计算？）
@@ -157,9 +170,19 @@ static void gen_lvar(Var *var) {
 
     if (var->init == NULL) return;
     // TODO: 多维数组初始化
-    if (var->type->kind == TY_ARRAY_OF) {
-        // Vector *args = var->init->args;
-
+    // 目前只支持按顺序逐个初始化
+    // 参考https://learn.microsoft.com/en-ie/cpp/c-language/initializing-aggregate-types
+    if (var->type->kind == TY_ARRAY_OF && var->init->node_type == ND_ARR_EXPR) {
+        Type *ty = var->type;
+        while (ty->kind == TY_ARRAY_OF) {
+            ty = ty->base;
+        }
+        for (int i = 0;i < var->init->args->len;i++) {
+            Node *arg = var->init->args->data[i];
+            Reg *r0 = gen_expr(arg);
+            printf("s%s t%d,%d(s0)\n", get_access_unit(ty->align), r0->vn, (var->offset + (ty->align * i)));
+            kill_reg(r0);
+        }
     }
     // if (var->type->kind == TY_ARRAY_OF) {
     //     Vector *args = var->init->args;
@@ -811,9 +834,9 @@ static Reg *gen_lval(Node *node) {
 
                     Reg *r1 = gen_expr(node->expression);
                     // 根据数组下标计算数组元素地址
-                    // addr(array[i]) = arr + i * arr->align
+                    // addr(array[i]) = arr + i * arr->type->size ? arr->type->align 待确认
                     Reg *r2 = new_reg();
-                    printf("li t%d,%d\n", r2->vn, node->type->align);
+                    printf("li t%d,%d\n", r2->vn, node->type->size);
                     Reg *r3 = new_reg();
                     printf("mul t%d,t%d,t%d\n", r3->vn, r2->vn, r1->vn);
                     kill_reg(r2);

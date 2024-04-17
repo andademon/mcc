@@ -7,6 +7,7 @@ void test() {
     // char *str = readFile("test/hello.c");
     // char *str = readFile("test/fibonacci.c");
     // char *str = readFile("test/gval.c");
+    // char *str = readFile("test/gval-array.c");
     // char *str = readFile("test/while.c");
     // char *str = readFile("test/do-while.c");
     // char *str = readFile("test/for.c");
