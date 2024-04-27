@@ -858,64 +858,32 @@ static Node *expression_statement() {
 */
 static Node *selection_statement() {
     if (match("if")) {
+        Node *if_stmt = new_node("IfStmt", ND_IF_STMT);
+        Node *els = NULL;
         next_token();
         expect("(");
         Node *test = expression();
         if (test == NULL) {
-            printf("if statement must have condition;");
+            printf("if statement must have condition;\n");
             exit(0);
         }
         expect(")");
-        Node *consequent = statement();
-        // first step, get if_stmt && if_stmt's test && if_stmt's consequent
-        Node *if_stmt = new_node("IfStmt", ND_IF_STMT);
-        if_stmt->test = test;
-        if_stmt->consequent = consequent;
-
-        // second step, link alternative to if_stmt's end
-        Node *p = if_stmt->alternative; // p 始终指向if_stmt->alternative链的末尾
-        while (match("else")) {
+        Node *then = statement();
+        if (match("else")) {
             next_token();
-            if (match("if")) {
-                next_token();
-                expect("(");
-                Node *new_test = expression();
-                expect(")");
-                Node *new_consequent = statement();
-                Node *new_if_stmt = new_node("IfStmt", ND_IF_STMT);
-                new_if_stmt->test = new_test;
-                new_if_stmt->consequent = new_consequent;
-                
-                // 此时为第一个新alternative节点， p 还没初始化，先初始化p
-                if(p == NULL) {
-                    if_stmt->alternative = new_if_stmt;
-                    p = if_stmt->alternative;
-                    continue;
-                }
-
-                p->alternative = new_if_stmt;
-                p = p->alternative;
-            }
-            else {
-                // else if 全部结束，最后一个else节点
-                Node *alternative = statement();
-                if (p == NULL) {
-                    if_stmt->alternative = alternative;
-                    break;
-                }
-                else {
-                    p->alternative = alternative;
-                    break;
-                }
-            }
+            els = statement();
         }
+        if_stmt->test = test;
+        if_stmt->then = then;
+        if_stmt->els = els;
+
         return if_stmt;
     }
     else if (match("switch")) {
         next_token();
         Node *switch_stmt = new_node("SwitchStmt", ND_SWITCH_STMT);
         expect("(");
-        switch_stmt->discriminant = expression();
+        switch_stmt->test = expression();
         expect(")");
         // switch_stmt->body = statement();
         expect("{");
@@ -985,17 +953,17 @@ static Node *iteration_statement() {
 }
 
 /**
- * 19.jump-statement −> return [ expression] ;
+ * 19.jump-statement −> return [ expression ] ;
  * | break ; 
  * | goto ID ;
 */
 static Node *jump_statement() {
     if (match("return")) {
         next_token();
-        Node *return_value = expression();
-        expect(";");
         Node *return_stmt = new_node("ReturnStmt", ND_RETURN_STMT);
-        return_stmt->body = return_value;
+        Node *body = expression();
+        expect(";");
+        return_stmt->body = body;
         return return_stmt;
     }
     else if (match("break")) {
@@ -1035,7 +1003,7 @@ static Node *labeled_statement() {
         Node *node = new_node("Case", ND_CASE);
         node->test = constant();
         expect(":");
-        node->consequent = statement();
+        node->then = statement();
         return node;
     }
     else if (match("default")) {
@@ -1043,7 +1011,7 @@ static Node *labeled_statement() {
         Node *node = new_node("Case", ND_CASE);
         node->test = NULL;
         expect(":");
-        node->consequent = statement();
+        node->then = statement();
         return node;
     }
     else {
@@ -1157,14 +1125,14 @@ static Node *conditional_expression() {
     Node *expr = logical_or_expression();
     if (match("?")) {
         next_token();
-        Node *consequent = expression();
+        Node *then = expression();
         expect(":");
-        Node *alternative = conditional_expression();
+        Node *els = conditional_expression();
         Node *expr_bak = expr;
         expr = new_node("TernaryExpression", ND_TERNARY_EXPR);
         expr->test = expr_bak;
-        expr->consequent = consequent;
-        expr->alternative = alternative;
+        expr->then = then;
+        expr->els = els;
     }
     return expr;
 }

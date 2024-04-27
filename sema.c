@@ -124,8 +124,8 @@ void walk_stmt(Node *node, SymbolTable *table) {
             break;
         }
         case ND_IF_STMT: {
-            walk_stmt(node->consequent, currentScope);
-            walk_stmt(node->alternative, currentScope);
+            walk_stmt(node->then, currentScope);
+            walk_stmt(node->els, currentScope);
             break;
         }
         case ND_FOR_STMT: {
@@ -145,7 +145,7 @@ void walk_stmt(Node *node, SymbolTable *table) {
             break;
         }
         case ND_CASE: {
-            walk_stmt(node->consequent, currentScope);
+            walk_stmt(node->then, currentScope);
             break;
         }
     }
@@ -239,8 +239,8 @@ Type *type_expr(Node *node, SymbolTable *table) {
         }
         case ND_TERNARY_EXPR: {
             Type *t1 = type_expr(node->test, table);
-            Type *t2 = type_expr(node->consequent, table);
-            Type *t3 = type_expr(node->alternative, table);
+            Type *t2 = type_expr(node->then, table);
+            Type *t3 = type_expr(node->els, table);
             if (!is_compatible(t2, t3)) {
                 sema_error("type mismatch in ternary expression\n");
             }
@@ -351,13 +351,13 @@ void type_stmt(Node *node, SymbolTable *table) {
             break;
         }
         case ND_CASE: {
-            type_stmt(node->consequent, table);
+            type_stmt(node->then, table);
             break;
         }
         case ND_IF_STMT: {
             type_expr(node->test, table);
-            type_stmt(node->consequent, table);
-            type_stmt(node->alternative, table);
+            type_stmt(node->then, table);
+            type_stmt(node->els, table);
             break;
         }
         case ND_SWITCH_STMT: {
@@ -425,8 +425,6 @@ SymbolTable *sema(Program *prog) {
     table = buildSymbolTable(prog);
 
     compute_var_offset(table, -72);
-
-    printSymbolTable(table, 0);
 
     check_type(prog, table);
 

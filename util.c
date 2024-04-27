@@ -290,13 +290,12 @@ Node *new_node(char *type_name, int node_type) {
     node->rhs = NULL;
 
     node->init = NULL;
-    node->return_value = NULL;
     node->update = NULL;
     node->value = NULL;
 
     node->test = NULL;
-    node->alternative = NULL;
-    node->consequent = NULL;
+    node->els = NULL;
+    node->then = NULL;
 
     node->decls = new_vec();
     node->stmts = new_vec();
@@ -366,11 +365,11 @@ void printNode(Node *node, int tabs) {
             printf("test: \n");
             printNode(node->test, tabs + 2);
             printTab(tabs + 1);
-            printf("consequent: \n");
-            printNode(node->consequent, tabs + 2);
+            printf("then: \n");
+            printNode(node->then, tabs + 2);
             printTab(tabs + 1);
-            printf("alternative: \n");
-            printNode(node->alternative, tabs + 2);
+            printf("els: \n");
+            printNode(node->els, tabs + 2);
             break;
         case ND_BLOCK:
             for (int i = 0;i < node->decls->len;i++) {
@@ -387,8 +386,8 @@ void printNode(Node *node, int tabs) {
             printf("test: \n");
             printNode(node->test, tabs + 2);
             printTab(tabs + 1);
-            printf("consequent: \n");
-            printNode(node->consequent, tabs + 2);
+            printf("then: \n");
+            printNode(node->then, tabs + 2);
             break;
         }
         case ND_CONTINUE_STMT:
@@ -440,14 +439,6 @@ void printNode(Node *node, int tabs) {
             printNode(node->body, tabs + 2);
             break;
         case ND_FUNC_PARAM:
-            if (node->is_array) {
-                printTab(tabs + 1);
-                printf("Array\n");
-            }
-            if (node->is_pointer) {
-                printTab(tabs + 1);
-                printf("Pointer\n");
-            }
             printTab(tabs + 1);
             printf("id: %s\n", node->name);
             break;
@@ -456,19 +447,19 @@ void printNode(Node *node, int tabs) {
             printf("test: \n");
             printNode(node->test, tabs + 2);
             printTab(tabs + 1);
-            printf("consequent: \n");
-            printNode(node->consequent, tabs + 2);
+            printf("then: \n");
+            printNode(node->then, tabs + 2);
             printTab(tabs + 1);
-            printf("alternative: \n");
-            printNode(node->alternative, tabs + 2);
+            printf("els: \n");
+            printNode(node->els, tabs + 2);
             break;
         case ND_RETURN_STMT:
             printNode(node->body, tabs + 1);
             break;
         case ND_SWITCH_STMT:
             printTab(tabs + 1);
-            printf("discriminant: \n");
-            printNode(node->discriminant, tabs + 2);
+            printf("test: \n");
+            printNode(node->test, tabs + 2);
             printTab(tabs + 1);
             printf("cases: \n");
             for (int i = 0;i < node->cases->len;i++) {
@@ -476,8 +467,6 @@ void printNode(Node *node, int tabs) {
             }
             break;
         case ND_VAR_DECL:
-            printTab(tabs + 1);
-            printf("type: %d\n", node->base_type);
             printTab(tabs + 1);
             printf("declarations: \n");
             for (int i = 0;i <= node->declarators->len;i++) {

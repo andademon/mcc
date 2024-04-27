@@ -599,14 +599,14 @@ static Reg *gen_expr(Node *node) {
 
             currentBB = bb1;
             printf(".L%d:\n", currentBB->label);
-            Reg *r1 = gen_expr(node->consequent);
+            Reg *r1 = gen_expr(node->then);
             printf("mv t%d,t%d\n", r0->vn, r1->vn);
             kill_reg(r1);
             jmp(last);
 
             currentBB = bb2;
             printf(".L%d:\n", currentBB->label);
-            Reg *r2 = gen_expr(node->alternative);
+            Reg *r2 = gen_expr(node->els);
             printf("mv t%d,t%d\n", r0->vn, r2->vn);
             kill_reg(r2);
             jmp(last);
@@ -667,7 +667,7 @@ static Reg *gen_expr(Node *node) {
                     }
                 }
                 else {
-                    printf("la t%d,%s\n", var->name);
+                    printf("la t%d,%s\n", r0->vn, var->name);
                 }
                 return r0;
             }
@@ -1034,12 +1034,12 @@ static void gen_stmt(Node *node) {
 
             currentBB = then;
             printf(".L%d:\n", currentBB->label);
-            gen_stmt(node->consequent);
+            gen_stmt(node->then);
             jmp(last);
 
             currentBB = els;
             printf(".L%d:\n", currentBB->label);
-            gen_stmt(node->alternative);
+            gen_stmt(node->els);
             jmp(last);
 
             currentBB = last;
@@ -1048,15 +1048,15 @@ static void gen_stmt(Node *node) {
             break;
         }
         case ND_SWITCH_STMT: {
-            // r0保存discriminant的值
-            Reg *r0 = gen_expr(node->discriminant);
+            // r0保存test的值
+            Reg *r0 = gen_expr(node->test);
             Vector *caseBBs = new_vec();
             // break后的去处
             BB *last = new_bb();
 
             BB *break_save = break_;
             break_ = last;
-            // 先根据discriminant生成跳转列表，一个case语句对应一个basic block
+            // 先根据test生成跳转列表，一个case语句对应一个basic block
             for (int i = 0;i < node->cases->len;i++) {
                 Node *case_ = node->cases->data[i];
                 BB *caseBB = new_bb();
@@ -1068,7 +1068,7 @@ static void gen_stmt(Node *node) {
                 kill_reg(r1);
             }
             kill_reg(r0);
-            // 如果有default分支，则switch的discriminant结束后添加跳转到default分支，而不是跳转到结束分支
+            // 如果有default分支，则switch的test结束后添加跳转到default分支，而不是跳转到结束分支
             for (int i = 0;i < node->cases->len;i++) {
                 Node *case_ = node->cases->data[i];
                 if (case_->test == NULL) {
@@ -1084,7 +1084,7 @@ static void gen_stmt(Node *node) {
                 Node *case_ = node->cases->data[i];
                 currentBB = caseBBs->data[i];
                 printf(".L%d:\n", currentBB->label);
-                gen_stmt(case_->consequent);
+                gen_stmt(case_->then);
             }
             // 生成最后的last basic block
             currentBB = last;

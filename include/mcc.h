@@ -240,11 +240,6 @@ typedef struct Node {
     // operator
     int op_type;
 
-    // type decl
-    int base_type;
-    bool is_array;
-    bool is_pointer;
-    int len;
     Type *type;
 
     // func decl
@@ -253,9 +248,6 @@ typedef struct Node {
 
     // body
     struct Node *body;
-
-    // node list
-    struct Node *next;
 
     // VariableDeclaration
     // struct Node *declarations;
@@ -273,18 +265,16 @@ typedef struct Node {
     // struct Node *params;
     Token *id;
 
-    // if ( test ) consequent else alternative
+    // if ( test ) then else els
     // for ( init ; test ; update) body
     // while ( test ) body
-    // switch ( discriminant ) body
+    // switch ( test ) body
     // case var: body
     struct Node *test;
-    struct Node *consequent; // case also has consequent
-    struct Node *alternative;
+    struct Node *then; // case also has then
+    struct Node *els;
     struct Node *init;
     struct Node *update;
-    struct Node *discriminant;
-    struct Node *return_value;
     struct Node *callee;
 
     Vector *decls;
