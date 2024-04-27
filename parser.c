@@ -612,7 +612,7 @@ static Vector *initiallizer_list() {
 
 /* 5.type-specifier −> int | void | struct-specifier */
 static Type *type_specifier() {
-    Token *tok = &(*current_token);
+    Token *token = &(*current_token);
     /* int | char | void  */
     if (match("int")) {
         next_token();
@@ -1072,7 +1072,7 @@ static Node *assignment_expression() {
     Node *left = conditional_expression();
 
     while (match("=")) {
-        Token *op = &(*current_token);
+        Token *token = &(*current_token);
         next_token();
 
         Node *right = conditional_expression();
@@ -1080,8 +1080,8 @@ static Node *assignment_expression() {
         left = new_node("binaryExpr", ND_BINARY_EXPR);
         left->lhs = left_bak;
         left->rhs = right;
-        left->op = op;
-        left->op_type = get_op_type(op->value);
+        left->token = token;
+        left->op_type = get_op_type(token->value);
     }
     return left;
 }
@@ -1103,7 +1103,7 @@ static Node *assignment_expression() {
 //         || match("<")
 //         || match("<=")
 //     ) {
-//         Token *op = &(*current_token);
+//         Token *token = &(*current_token);
 //         next_token();
 //         right = additive_expression();
 //         if (right == NULL) {
@@ -1113,7 +1113,7 @@ static Node *assignment_expression() {
 //             Node *node = new_node("BinaryExpr", ND_BINARY_EXPR);
 //             node->lhs = left;
 //             node->rhs = right;
-//             node->op = op;
+//             node->token = op;
 //             node->op_type = get_op_type(op->value);
 //             return node;
 //         }
@@ -1141,7 +1141,7 @@ static Node *logical_or_expression() {
     Node *left = logical_and_expression();
 
     while (match("||")) {
-        Token *op = &(*current_token);
+        Token *token = &(*current_token);
         next_token();
         Node *right = logical_and_expression();
         if (right != NULL) {
@@ -1149,8 +1149,8 @@ static Node *logical_or_expression() {
             left = new_node("binaryExpr", ND_BINARY_EXPR);
             left->lhs = left_bak;
             left->rhs = right;
-            left->op = op;
-            left->op_type = get_op_type(op->value);
+            left->token = token;
+            left->op_type = get_op_type(token->value);
         }
     }
     return left;
@@ -1160,7 +1160,7 @@ static Node *logical_and_expression() {
     Node *left = equality_expression();
 
     while (match("&&")) {
-        Token *op = &(*current_token);
+        Token *token = &(*current_token);
         next_token();
         Node *right = equality_expression();
         if (right != NULL) {
@@ -1168,8 +1168,8 @@ static Node *logical_and_expression() {
             left = new_node("binaryExpr", ND_BINARY_EXPR);
             left->lhs = left_bak;
             left->rhs = right;
-            left->op = op;
-            left->op_type = get_op_type(op->value);
+            left->token = token;
+            left->op_type = get_op_type(token->value);
         }
     }
     return left;
@@ -1179,7 +1179,7 @@ static Node *equality_expression() {
     Node *left = relational_expression();
 
     while (match("==") || match("!=")) {
-        Token *op = &(*current_token);
+        Token *token = &(*current_token);
         next_token();
         Node *right = relational_expression();
         if (right != NULL) {
@@ -1187,8 +1187,8 @@ static Node *equality_expression() {
             left = new_node("binaryExpr", ND_BINARY_EXPR);
             left->lhs = left_bak;
             left->rhs = right;
-            left->op = op;
-            left->op_type = get_op_type(op->value);
+            left->token = token;
+            left->op_type = get_op_type(token->value);
         }
     }
     return left;
@@ -1202,7 +1202,7 @@ static Node *relational_expression() {
         || match(">=") 
         || match("<=")
     ) {
-        Token *op = &(*current_token);
+        Token *token = &(*current_token);
         next_token();
         Node *right = additive_expression();
         if (right != NULL) {
@@ -1210,8 +1210,8 @@ static Node *relational_expression() {
             left = new_node("binaryExpr", ND_BINARY_EXPR);
             left->lhs = left_bak;
             left->rhs = right;
-            left->op = op;
-            left->op_type = get_op_type(op->value);
+            left->token = token;
+            left->op_type = get_op_type(token->value);
         }
     }
     return left;
@@ -1228,7 +1228,7 @@ static Node *additive_expression() {
         return NULL;
     }
     while (match("+") || match("-")) {
-        Token *op = &(*current_token);
+        Token *token = &(*current_token);
         next_token();
         Node *right = multiplicative_expression();
         if (right != NULL) {
@@ -1236,8 +1236,8 @@ static Node *additive_expression() {
             left = new_node("binaryExpr", ND_BINARY_EXPR);
             left->lhs = left_bak;
             left->rhs = right;
-            left->op = op;
-            left->op_type = get_op_type(op->value);
+            left->token = token;
+            left->op_type = get_op_type(token->value);
         }
     }
     return left;
@@ -1255,7 +1255,7 @@ static Node *multiplicative_expression() {
         return NULL;
     }
     while (match("*") || match("/") || match("%")) {
-        Token *op = &(*current_token);
+        Token *token = &(*current_token);
         next_token();
         Node *right = unary_expression();
         if (right != NULL) {
@@ -1263,8 +1263,8 @@ static Node *multiplicative_expression() {
             left = new_node("binaryExpr", ND_BINARY_EXPR);
             left->lhs = left_bak;
             left->rhs = right;
-            left->op = op;
-            left->op_type = get_op_type(op->value);
+            left->token = token;
+            left->op_type = get_op_type(token->value);
         }
     }
     return left;
@@ -1280,13 +1280,13 @@ static Node *unary_expression() {
     || match("~")
     || match("!")
     ) {
-        Token *op = &(*current_token);
+        Token *token = &(*current_token);
         next_token();
         Node *node = new_node("UnaryExpression", ND_UNARY_EXPR);
-        node->op = op;
+        node->token = token;
         node->is_prefix = true;
         node->body = unary_expression();
-        node->op_type = get_unary_op_type(op->value);
+        node->op_type = get_unary_op_type(token->value);
         return node;
     }
     else return postfix_expression();
@@ -1301,7 +1301,7 @@ static Node *postfix_expression() {
         || match("->")
         || match("(")
     ) {
-        Token *op = &(*current_token);
+        Token *token = &(*current_token);
         Node *bak = node;
 
         // 最先解析到的UnaryExpr先于后解析到的UnaryExpr执行，所以在语法树结构上先解析到的UnaryExpr处于底端
@@ -1309,23 +1309,23 @@ static Node *postfix_expression() {
             next_token();
             node = new_node("UnaryExpression", ND_UNARY_EXPR);
             node->body = bak;
-            node->op = op;
+            node->token = token;
             node->is_prefix = false;
-            node->op_type = get_unary_op_type(op->value);
+            node->op_type = get_unary_op_type(token->value);
         }
         else if (match(".") || match("->")) {
             next_token();
             node = new_node("UnaryExpression", ND_UNARY_EXPR);
             node->body = bak;
-            node->op = op;
+            node->token = token;
             node->is_prefix = false;
-            node->op_type = get_unary_op_type(op->value);
+            node->op_type = get_unary_op_type(token->value);
         }
         else if (match("[")) {
             next_token();
             node = new_node("UnaryExpression", ND_UNARY_EXPR);
             node->body = bak;
-            node->op = op;
+            node->token = token;
             node->is_prefix = false;
             Node *expr = expression();
             node->expression = expr;
@@ -1349,17 +1349,17 @@ static Node *postfix_expression() {
 */
 static Node *primary_expression() {
     if (match_type(IDENTIFIER)) {
-        Token *id = &(*current_token);
+        Token *token = &(*current_token);
         next_token();
         Node *node = new_node("Identifier", ND_IDENT);
-        node->id = id;
+        node->token = token;
         return node;
     }
     else if (match_type(STRING)) {
-        Token *tok = &(*current_token);
+        Token *token = &(*current_token);
         next_token();
         Node *node = new_node("Constant", ND_STR);
-        node->tok = tok;
+        node->token = token;
         return node;
     }
     else if (match_type(NUMBER) || match_type(CHARACTER)) {
@@ -1377,17 +1377,17 @@ static Node *primary_expression() {
  * constant -> NUM | CHAR
 */
 static Node *constant() {
-    Token *tok = &(*current_token);
+    Token *token = &(*current_token);
     if (match_type(NUMBER)) {
         next_token();
         Node *node = new_node("Constant", ND_NUM);
-        node->tok = tok;
+        node->token = token;
         return node;
     }
     else if (match_type(CHARACTER)) {
         next_token();
         Node *node = new_node("Constant", ND_CHAR);
-        node->tok = tok;
+        node->token = token;
         return node;
     }
     printf("parse error!\n");
@@ -1399,7 +1399,7 @@ static Node *constant() {
 */
 // static Node *call_function() {
 //     if (match_type(IDENTIFIER)) {
-//         Token *tok = &(*current_token);
+//         Token *token = &(*current_token);
 //         next_token();
 //         if (match("(")) {
 //             next_token();
@@ -1407,7 +1407,7 @@ static Node *constant() {
 //             if (match(")")) {
 //                 next_token();
 //                 Node *funcall = new_node("CallExpr", ND_CALLEXPR);
-//                 funcall->id = tok;
+//                 funcall->id = token;
 //                 funcall->args = args;
 //                 return funcall;
 //             }

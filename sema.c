@@ -296,7 +296,7 @@ Type *type_expr(Node *node, SymbolTable *table) {
             return NULL;
         }
         case ND_IDENT: {
-            Var *var = lookup(table, node->id->value);
+            Var *var = lookup(table, node->token->value);
             if (var) {
                 // 如果id是一个函数名,将其视为指针,该指针指向函数
                 if (var->type->kind == TY_FUNC) {

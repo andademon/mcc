@@ -122,16 +122,16 @@ static void gen_gvar(Var *var) {
     else {
         switch (var->type->kind) {
             case TY_INT: {
-                printf("\t.word\t%s\n", var->init->tok->value);
+                printf("\t.word\t%s\n", var->init->token->value);
                 break;
             }
             case TY_CHAR: {
-                printf("\t.byte\t%d\n", (int)var->init->tok->value[0]);
+                printf("\t.byte\t%d\n", (int)var->init->token->value[0]);
                 break;
             }
             // TODO: pointer/array初始化
             case TY_POINTER_TO: {
-                printf("\t.dword\t%s\n", var->init->tok->value);
+                printf("\t.dword\t%s\n", var->init->token->value);
                 break;
             }
             case TY_ARRAY_OF: {
@@ -144,13 +144,13 @@ static void gen_gvar(Var *var) {
                 for (int i = 0;i < var->init->args->len;i++) {
                     Node *arg = var->init->args->data[i];
                     if (arg->node_type == ND_NUM) {
-                        printf("\t.word\t%s\n", arg->tok->value);
+                        printf("\t.word\t%s\n", arg->token->value);
                     }
                     else if (arg->node_type == ND_CHAR) {
-                        printf("\t.byte\t%d\n", (int)arg->tok->value[0]);
+                        printf("\t.byte\t%d\n", (int)arg->token->value[0]);
                     }
                     else {
-                        printf("\t%s\t%s\n", get_access_unit(ty->align), arg->tok->value);
+                        printf("\t%s\t%s\n", get_access_unit(ty->align), arg->token->value);
                     }
                 }
                 break;
@@ -618,12 +618,12 @@ static Reg *gen_expr(Node *node) {
         }
         case ND_NUM: {
             Reg *r0 = new_reg();
-            printf("li t%d,%s\n", r0->vn, node->tok->value);
+            printf("li t%d,%s\n", r0->vn, node->token->value);
             return r0;
         }
         case ND_CHAR: {
             Reg *r0 = new_reg();
-            printf("li t%d,%d\n", r0->vn, (int)node->tok->value[0]);
+            printf("li t%d,%d\n", r0->vn, (int)node->token->value[0]);
             return r0;
         }
         case ND_STR: {
@@ -631,14 +631,14 @@ static Reg *gen_expr(Node *node) {
             int clabel = new_constant_label();
             printf(".section    .rodata\n");
             printf(".LC%d:\n", clabel);
-            printf("    .string\t%s\n", node->tok->value);
+            printf("    .string\t%s\n", node->token->value);
             printf(".section    .text\n");
             printf("lla t%d,.LC%d\n", r0->vn, clabel);
             return r0;
             break;
         }
         case ND_IDENT: {
-            Var *var = lookup(currentScope, node->id->value);
+            Var *var = lookup(currentScope, node->token->value);
             if (var == NULL) {
                 exit(1);
             }
@@ -724,7 +724,7 @@ static Reg *gen_expr(Node *node) {
                     
                 // }
                 // else {
-                    printf("call %s\n", node->callee->id->value);
+                    printf("call %s\n", node->callee->token->value);
                 // }
             }
 
@@ -798,9 +798,9 @@ static Reg *gen_lval(Node *node) {
             //      1.是函数参数
             //      2.是函数本地变量
             // 不考虑数组情况，数组情况在ND_UNARY_EXPR情况中处理，只考虑基本类型的变量
-            Var *var = lookup(currentScope, node->id->value);
+            Var *var = lookup(currentScope, node->token->value);
             if (!var) {
-                printf("no var found: %s\n", node->id->value);
+                printf("no var found: %s\n", node->token->value);
             }
             Reg *r0 = new_reg();
             // 全局变量,直接从标签加载地址
@@ -872,7 +872,7 @@ static Reg *gen_lval(Node *node) {
 // static char *get_lval_access_unit(Node *node) {
 //     switch(node->node_type) {
 //         case ND_IDENT: {
-//             Var *var = lookup(currentScope, node->id->value);
+//             Var *var = lookup(currentScope, node->token->value);
 //             return get_access_unit(var->type->align);
 //         }
 //         case ND_UNARY_EXPR: {

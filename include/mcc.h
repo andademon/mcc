@@ -232,50 +232,34 @@ struct Type {
 typedef struct Node {
     char *type_name;
     int node_type;
-    char *value;
-
-    Token *tok;
+    Token *token;
     char *name;
 
     // operator
     int op_type;
 
     Type *type;
-
-    // func decl
-    struct Node *decl;
-    struct Node *stmt;
-
-    // body
-    struct Node *body;
-
-    // VariableDeclaration
-    // struct Node *declarations;
-
-    // ExprStmt / array_name [ expression ] in UnaryExpression
-    struct Node *expression;
-
-    // BinaryExpr
-    struct Node *lhs;
-    struct Node *rhs;
-    // OPERATOR op;
-    Token *op;
+    
     bool is_prefix; // for unary-expr && postfix-expr op
-    // Function
-    // struct Node *params;
-    Token *id;
 
     // if ( test ) then else els
     // for ( init ; test ; update) body
     // while ( test ) body
     // switch ( test ) body
-    // case var: body
+    // case var: then
+    // test ? then :els
+    struct Node *body;
     struct Node *test;
-    struct Node *then; // case also has then
+    struct Node *then;
     struct Node *els;
     struct Node *init;
     struct Node *update;
     struct Node *callee;
+    // BinaryExpr
+    struct Node *lhs;
+    struct Node *rhs;
+    // ExprStmt / array_name [ expression ] in UnaryExpression
+    struct Node *expression;
 
     Vector *decls;
     Vector *stmts;

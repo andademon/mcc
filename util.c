@@ -280,18 +280,14 @@ Node *new_node(char *type_name, int node_type) {
     node->node_type = node_type;
 
     node->body = NULL;
-    node->decl = NULL;
-    node->stmt = NULL;
     node->expression = NULL;
-    node->id = NULL;
 
-    node->op = NULL;
+    node->token = NULL;
     node->lhs = NULL;
     node->rhs = NULL;
 
     node->init = NULL;
     node->update = NULL;
-    node->value = NULL;
 
     node->test = NULL;
     node->els = NULL;
@@ -345,7 +341,7 @@ void printNode(Node *node, int tabs) {
             break;
         case ND_UNARY_EXPR:
             printTab(tabs + 1);
-            printf("op: %s\n", node->op->value);
+            printf("op: %s\n", node->token->value);
             printTab(tabs + 1);
             printf("is_prefix: %s\n", (node->is_prefix) ? "true" : "false");
             printNode(node->body, tabs + 2);
@@ -358,7 +354,7 @@ void printNode(Node *node, int tabs) {
             printf("right: \n");
             printNode(node->rhs, tabs + 2);
             printTab(tabs + 1);
-            printf("op: %s\n", node->op->value);
+            printf("op: %s\n", node->token->value);
             break;
         case ND_TERNARY_EXPR:
             printTab(tabs + 1);
@@ -413,7 +409,7 @@ void printNode(Node *node, int tabs) {
             // printTab(tabs + 1);
             // printf("function_name:\n");
             // printTab(tabs + 2);
-            // if (node->id) printf("%s\n", node->id->value);
+            // if (node->token) printf("%s\n", node->token->value);
             printTab(tabs + 1);
             printf("callee:\n");
             printNode(node->callee, tabs + 2);
@@ -498,15 +494,15 @@ void printNode(Node *node, int tabs) {
             break;
         case ND_IDENT:
             printTab(tabs + 1);
-            printf("id: %s\n", node->id->value);
+            printf("id: %s\n", node->token->value);
             break;
         case ND_NUM:
             printTab(tabs + 1);
-            printf("value: %s\n", node->tok->value);
+            printf("value: %s\n", node->token->value);
             break;
         case ND_STR:
             printTab(tabs + 1);
-            printf("value: %s\n", node->tok->value);
+            printf("value: %s\n", node->token->value);
             break;
         default:
             printNode(node->body, tabs + 1);
