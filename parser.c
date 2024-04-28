@@ -283,14 +283,14 @@ static bool match(char *str) {
 }
 
 static bool match_type(int type) {
-    if (current_token->type == type) {
+    if (current_token->token_type == type) {
         return true;
     }
     return false;
 }
 
 static void expect_type(int type) {
-    if (current_token->type == type) {
+    if (current_token->token_type == type) {
         current_token = current_token->next;
         return;
     }

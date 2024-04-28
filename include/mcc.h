@@ -9,20 +9,34 @@
 #define FALSE 0
 #define EOF (-1)
 
-typedef struct File {
+typedef struct File File;
+typedef struct Vector Vector;
+typedef struct Map Map;
+typedef struct Token Token;
+typedef struct Node Node;
+typedef struct Type Type;
+typedef struct Program Program;
+typedef struct Function Function;
+typedef struct Var Var;
+typedef struct SymbolTable SymbolTable;
+typedef struct Reg Reg;
+typedef struct BB BB;
+typedef struct IR IR;
+
+struct File {
     char *filename;
     char *path;
     char *content;
-} File;
+};
 
 File *new_file(char *filename, char *path);
 
 /* 工具类 */
-typedef struct {
+struct Vector {
   void **data;
   int capacity;
   int len;
-} Vector;
+};
 
 Vector *new_vec(void);
 void vec_push(Vector *v, void *elem);
@@ -31,10 +45,10 @@ void *vec_pop(Vector *v);
 void *vec_last(Vector *v);
 bool vec_contains(Vector *v, void *elem);
 
-typedef struct {
+struct Map {
     Vector *keys;
     Vector *vals;
-} Map;
+};
 
 Map *new_map(void);
 void map_put(Map *map, char *key, void *val);
@@ -42,15 +56,12 @@ void map_puti(Map *map, char *key, int val);
 void *map_get(Map *map, char *key);
 int map_geti(Map *map, char *key, int default_);
 
-typedef struct Type Type;
-typedef struct Node Node;
-typedef struct SymbolTable SymbolTable;
+
 
 /* (Alpha | _)(Alpha | Digit | _)* */
 /* (Digit)(Digit)* */
 /* "\"(* except for \")\"" */
-typedef enum
-{
+typedef enum {
     KEYWORD, /* 关键字 */
     IDENTIFIER, /* 标识符 */
     NUMBER, /* 数字常量 */
@@ -76,16 +87,15 @@ int isDigit(char c);
 /* ---scanner.c--- */
 
 /* Token */
-typedef struct Token
-{
+struct Token {
     int id;
-    TOKEN_TYPE type;
-    char *value;
     int line;
-    struct Token *next;
-} Token;
+    int token_type;
+    char *value;
+    Token *next;
+};
 
-static Token *new_token(int id, int line, TOKEN_TYPE type, char *value);
+static Token *new_token(int id, int line, int token_type, char *value);
 Token *Lexer(char *str);
 
 char *new_str();
@@ -99,9 +109,6 @@ char *str_pop(char *str);
 enum {
     ND_NULL_EXPR, // Do nothing
 
-    // ND_DECL_LIST,
-    // ND_STMT_LIST,
-
     ND_BLOCK,     // { ... }
     ND_CASE,      // case
     ND_GOTO_STMT,      // "goto"
@@ -113,12 +120,6 @@ enum {
     ND_VAR_DECL, // Variable declaration
     ND_TYPE_SPEC, // type specifier
     ND_VAR_DECLARATOR,
-
-    // ND_DCL,
-    // ND_DIR_DCL,
-    // ND_PTR,
-    // ND_ARR_OF,
-    // ND_FUNC_RT,
 
     ND_FUNC_DECL, // Function decl
     ND_FUNC_PARAM,
@@ -229,15 +230,14 @@ struct Type {
     Vector *members;
 };
 
-typedef struct Node {
+struct Node {
     char *type_name;
     int node_type;
-    Token *token;
-    char *name;
 
     // operator
     int op_type;
-
+    char *name;
+    Token *token;
     Type *type;
     
     bool is_prefix; // for unary-expr && postfix-expr op
@@ -271,7 +271,7 @@ typedef struct Node {
     Vector *exprs; // sequence expression
 
     SymbolTable *scope; // 用于ND_BLOCK语义分析和代码生成
-} Node;
+};
 
 Node *new_node(char *type_name, int node_type);
 
@@ -280,30 +280,25 @@ Node *new_node(char *type_name, int node_type);
 //     Node *exprs;
 // } SequenceExpr;
 
-typedef struct {
+struct Program {
   Vector *gvars;
   Vector *funcs;
-} Program;
+};
 
 Program *new_prog();
 
-typedef struct {
+struct Function {
   char *name;
   Node *node;
   Vector *params;
   Vector *lvars;
   Vector *stmts;
   Vector *bbs;
-} Function;
+};
 
 Function *new_func();
 
-typedef struct {
-    int dtype;
-    struct DerivedType *child;
-} DerivedType;
-
-typedef struct {
+struct Var {
     // 基本属性
     char *name;
     // int type;
@@ -320,7 +315,7 @@ typedef struct {
     // int type_size; // base type size
     // int memory_size; // memory size( such as array.memory_size = type_size * len, pointer.memory_size = 8 )    
     int offset; // offset from fp pointer
-} Var;
+};
 
 Var *new_var();
 
@@ -329,22 +324,22 @@ Program *parse(Token *tokens);
 // sema.c
 
 /* 符号表 */
-typedef struct SymbolTable {
+struct SymbolTable {
     int scopeLevel; // 作用域层级(全局作用域层级为0)
     int scopeId; // 当前作用域在parent作用域中的id(0开始,递增)
     Map *entries;
     struct SymbolTable *parent;
     Vector *children;
-} SymbolTable;
+};
 
-struct SymbolTable *createSymbolTable(int scopeLevel, struct SymbolTable *parent);
-struct SymbolTable *enterScope(struct SymbolTable *parent);
-struct SymbolTable *exitScope(struct SymbolTable *current);
-void insert(struct SymbolTable *node, char *key, void *val);
-void *lookup_current(struct SymbolTable *node, char *key);
-void *lookup(struct SymbolTable *node, char *name);
+SymbolTable *createSymbolTable(int scopeLevel, SymbolTable *parent);
+SymbolTable *enterScope(SymbolTable *parent);
+SymbolTable *exitScope(SymbolTable *current);
+void insert(SymbolTable *node, char *key, void *val);
+void *lookup_current(SymbolTable *node, char *key);
+void *lookup(SymbolTable *node, char *name);
 void sema_error(char *msg);
-struct SymbolTable *buildSymbolTable(Program *prog);
+SymbolTable *buildSymbolTable(Program *prog);
 SymbolTable *sema(Program *prog);
 
 // codegen.c
@@ -379,24 +374,24 @@ enum {
 
 /* 寄存器 */
 
-typedef struct {
+struct Reg {
     int vn; // virtual register number
     int rn; // real register number
 
     bool using;
-} Reg;
+};
 
 /* 基本块 */
-typedef struct {
+struct BB {
     int label;
     Vector *ir;
 
     Vector *in_regs;
     Vector *out_regs;
-} BB; /*basic block*/
+}; /*basic block*/
 
 /* 三地址代码形式的IR */
-typedef struct {
+struct IR {
     int op;
     Reg *r0;
     Reg *r1;
@@ -409,7 +404,7 @@ typedef struct {
 
     // Load/store size in bytes
     int size;
-} IR;
+};
 
 void printTab(int num);
 void printToken(Token *token);
@@ -440,6 +435,5 @@ Type *get_base(Type *type);
 Type *type_expr(Node *node, SymbolTable *table);
 void type_stmt(Node *node, SymbolTable *table);
 void check_type(Program *prog, SymbolTable *table);
-
 
 #endif

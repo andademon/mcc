@@ -311,7 +311,7 @@ void printTab(int num) {
 }
 
 void printToken(Token *token) {
-    printf("%d\t%d\t%d\t%s\n", token->id, token->line, token->type, token->value);
+    printf("%d\t%d\t%d\t%s\n", token->id, token->line, token->token_type, token->value);
 }
 
 void printTokenList(Token *tokens) {

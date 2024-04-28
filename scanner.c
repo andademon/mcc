@@ -27,12 +27,11 @@ char *str_pop(char *str)
     return str;
 }
 
-static Token *new_token(int id, int line, TOKEN_TYPE type, char *value)
-{
+static Token *new_token(int id, int line, int token_type, char *value) {
     Token *token = (Token *)malloc(sizeof(Token));
     token->id = id;
     token->line = line;
-    token->type = type;
+    token->token_type = token_type;
     token->value = value;
     token->next = NULL;
     return token;
