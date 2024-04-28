@@ -386,6 +386,19 @@ void printNode(Node *node, int tabs) {
             printNode(node->then, tabs + 2);
             break;
         }
+        case ND_GOTO_STMT: {
+            printTab(tabs + 1);
+            printf("label: %s\n", node->token->value);
+            break;
+        }
+        case ND_LABEL_STMT: {
+            printTab(tabs + 1);
+            printf("label: %s\n", node->token->value);
+            printTab(tabs + 1);
+            printf("body: \n");
+            printNode(node->body, tabs + 2);
+            break;
+        }
         case ND_CONTINUE_STMT:
             break;
         case ND_EXPR_STMT:

@@ -1096,6 +1096,15 @@ static void gen_stmt(Node *node) {
         case ND_CASE: {
             break;
         }
+        case ND_GOTO_STMT: {
+            printf("j %s\n", node->token->value);
+            break;
+        }
+        case ND_LABEL_STMT: {
+            printf("%s:\n", node->token->value);
+            gen_stmt(node->body);
+            break;
+        }
         case ND_CONTINUE_STMT: {
             jmp(continue_);
             break;

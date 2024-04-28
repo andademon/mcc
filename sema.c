@@ -123,6 +123,10 @@ void walk_stmt(Node *node, SymbolTable *table) {
             }
             break;
         }
+        case ND_LABEL_STMT: {
+            walk_stmt(node->body, currentScope);
+            break;
+        }
         case ND_IF_STMT: {
             walk_stmt(node->then, currentScope);
             walk_stmt(node->els, currentScope);

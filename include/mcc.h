@@ -105,7 +105,7 @@ enum {
     ND_BLOCK,     // { ... }
     ND_CASE,      // case
     ND_GOTO_STMT,      // "goto"
-    ND_LABEL,
+    ND_LABEL_STMT,
     ND_CONTINUE_STMT, // continue
     ND_BREAK_STMT, // break
     ND_RETURN_STMT,    // return

@@ -65,7 +65,8 @@
  * | iteration-statement 
  * | jump-statement
  * 21.expression-statement −> [ expression ] ;
- * 22.selection-statement −> if ( expression ) statement { else if ( expression ) statement } [ else statement ]
+ * 22.selection-statement −> if ( expression ) statement
+ * | if ( expression ) statement else statement
  * | switch ( expression ) statement
  * 23.iteration-statement −> while ( expression ) statement
  * | for ( [expression ] ; [expression ] ; [expression] ) statement
@@ -960,11 +961,11 @@ static Node *iteration_statement() {
 static Node *jump_statement() {
     if (match("return")) {
         next_token();
-        Node *return_stmt = new_node("ReturnStmt", ND_RETURN_STMT);
+        Node *node = new_node("ReturnStmt", ND_RETURN_STMT);
         Node *body = expression();
         expect(";");
-        return_stmt->body = body;
-        return return_stmt;
+        node->body = body;
+        return node;
     }
     else if (match("break")) {
         next_token();
@@ -978,9 +979,12 @@ static Node *jump_statement() {
     } 
     else {
         expect("goto");
+        Token *token = &(*current_token);
         expect_type(IDENTIFIER);
         expect(";");
-        return new_node("GotoStmt", ND_GOTO_STMT);
+        Node *node = new_node("GotoStmt", ND_GOTO_STMT);
+        node->token = token;
+        return node;
     }
 }
 
@@ -1015,9 +1019,14 @@ static Node *labeled_statement() {
         return node;
     }
     else {
+        Token *token = &(*current_token);
         expect_type(IDENTIFIER);
         expect(":");
-        statement();
+        Node *node = new_node("LabelStmt", ND_LABEL_STMT);
+        Node *body = statement();
+        node->token = token;
+        node->body = body;
+        return node;
     }
 }
 
