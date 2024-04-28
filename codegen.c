@@ -25,7 +25,7 @@ static Reg *load();
 static void store();
 
 int nlabel = 1; // label count
-int nreg = 0; // real register count
+int nreg = 1; // real register count
 int clabel = 0; // constant label count
 // int offset = 0;
 
@@ -45,7 +45,7 @@ static void nop() {
 
 // 分支跳转IR,绑定真分支与跳转分支
 static IR *br(Reg *r, BB *then, BB *els) {
-    printf("beq t%d,zero,.L%d\n", r->vn, els->label);
+    printf("beq s%d,zero,.L%d\n", r->vn, els->label);
     jmp(then);
     IR *ir = new_ir();
     ir->r2 = r;
@@ -180,7 +180,7 @@ static void gen_lvar(Var *var) {
         for (int i = 0;i < var->init->args->len;i++) {
             Node *arg = var->init->args->data[i];
             Reg *r0 = gen_expr(arg);
-            printf("s%s t%d,%d(s0)\n", get_access_unit(ty->align), r0->vn, (var->offset + (ty->align * i)));
+            printf("s%s s%d,%d(s0)\n", get_access_unit(ty->align), r0->vn, (var->offset + (ty->align * i)));
             kill_reg(r0);
         }
     }
@@ -188,7 +188,7 @@ static void gen_lvar(Var *var) {
     //     Vector *args = var->init->args;
     //     for (int i = 0;i < args->len;i++) {
     //         Reg *r0 = gen_expr(args->data[i]);
-    //         printf("s%s t%d,%d(s0)\n", get_access_unit(var->type_size), r0->vn, offset + var->type_size * i);
+    //         printf("s%s s%d,%d(s0)\n", get_access_unit(var->type_size), r0->vn, offset + var->type_size * i);
     //         kill_reg(r0);
     //     }
     //     return;
@@ -196,7 +196,7 @@ static void gen_lvar(Var *var) {
     else {
         type_expr(var->init, currentScope);
         Reg *r0 = gen_expr(var->init);
-        printf("s%s t%d,%d(s0)\n", get_access_unit(var->type->align), r0->vn, var->offset);
+        printf("s%s s%d,%d(s0)\n", get_access_unit(var->type->align), r0->vn, var->offset);
         kill_reg(r0);
     }
 }
@@ -206,12 +206,12 @@ static Reg *gen_unaop(Node *node) {
     switch (node->op_type) {
         case OP_NOT: {
             Reg *r0 = gen_expr(node->body);
-            printf("not t%d,t%d\n", r0->vn, r0->vn);
+            printf("not s%d,s%d\n", r0->vn, r0->vn);
             return r0;
         }
         // case OP_BITNOT: {
         //     Reg *r0 = gen_expr(node->body);
-        //     printf("not t%d,t%d\n", r0->vn, r0->vn);
+        //     printf("not s%d,s%d\n", r0->vn, r0->vn);
         //     return r0;
         // }
         case OP_ADDR: {
@@ -222,7 +222,7 @@ static Reg *gen_unaop(Node *node) {
             Reg *r0 = new_reg();
             Reg *r1 = gen_expr(node->body);
             // char *access_unit = get_lval_access_unit(node->body);
-            printf("l%s t%d,0(t%d)\n", get_access_unit(node->type->align), r0->vn, r1->vn);
+            printf("l%s s%d,0(s%d)\n", get_access_unit(node->type->align), r0->vn, r1->vn);
             kill_reg(r1);
             return r0;
         }
@@ -232,33 +232,33 @@ static Reg *gen_unaop(Node *node) {
         }
         case OP_MINUS: {
             Reg *r0 = gen_expr(node->body);
-            printf("negw t%d,t%d\n", r0->vn, r0->vn);
+            printf("negw s%d,s%d\n", r0->vn, r0->vn);
             return r0;
         }
         case OP_INC: {
             Reg *r0 = gen_lval(node->body);
             Reg *r1 = new_reg();
             char *access_unit = get_access_unit(node->type->align);
-            printf("l%s t%d,0(t%d)\n", access_unit, r1->vn, r0->vn);
-            printf("addi t%d,t%d,1\n", r1->vn, r1->vn);
-            printf("s%s t%d,0(t%d)\n", access_unit, r1->vn, r0->vn);
+            printf("l%s s%d,0(s%d)\n", access_unit, r1->vn, r0->vn);
+            printf("addi s%d,s%d,1\n", r1->vn, r1->vn);
+            printf("s%s s%d,0(s%d)\n", access_unit, r1->vn, r0->vn);
             kill_reg(r0);
             return r1;
             // Reg *r0 = gen_expr(node->body);
-            // printf("addi t%d,t%d,1\n", r0->vn, r0->vn);
+            // printf("addi s%d,s%d,1\n", r0->vn, r0->vn);
             // Var *v = lookup(currentScope, node->body->id->value);
             // if (v) {
             //     if (v->is_gval) {
             //         Reg *r1 = new_reg();
             //         // 先将全局变量的地址加载到一个寄存器中保存
-            //         printf("la t%d,%s\n", r1->vn, v->name);
+            //         printf("la s%d,%s\n", r1->vn, v->name);
             //         // 将计算结果保存到该地址
-            //         printf("sw t%d,0(t%d)\n", r0->vn, r1->vn);
+            //         printf("sw s%d,0(s%d)\n", r0->vn, r1->vn);
             //         kill_reg(r1);
             //     }
             //     else {
             //         // 通过偏移量保存在栈内
-            //         printf("sw t%d,-%d(s0)\n", r0->vn, v->offset);
+            //         printf("sw s%d,-%d(s0)\n", r0->vn, v->offset);
             //     }
             // }
             // return r0;
@@ -267,9 +267,9 @@ static Reg *gen_unaop(Node *node) {
             Reg *r0 = gen_lval(node->body);
             Reg *r1 = new_reg();
             char *access_unit = get_access_unit(node->type->align);
-            printf("l%s t%d,0(t%d)\n", access_unit, r1->vn, r0->vn);
-            printf("subi t%d,t%d,1\n", r1->vn, r1->vn);
-            printf("s%s t%d,0(t%d)\n", access_unit, r1->vn, r0->vn);
+            printf("l%s s%d,0(s%d)\n", access_unit, r1->vn, r0->vn);
+            printf("subi s%d,s%d,1\n", r1->vn, r1->vn);
+            printf("s%s s%d,0(s%d)\n", access_unit, r1->vn, r0->vn);
             kill_reg(r0);
             return r1;
         }
@@ -281,17 +281,17 @@ static Reg *gen_unaop(Node *node) {
             Reg *r0 = new_reg();
             Reg *r1 = gen_lval(node);
             char *access_unit = get_access_unit(node->type->align);
-            printf("l%s t%d,0(t%d)\n", access_unit, r0->vn, r1->vn);
+            printf("l%s s%d,0(s%d)\n", access_unit, r0->vn, r1->vn);
             kill_reg(r1);
             return r0;
             // Var *v = lookup(currentScope, node->body->id->value);
             // Reg *r0 = new_reg();
             // Reg *r1 = gen_expr(node->expression);
-            // printf("li t%d,%d\n", r0->vn, v->type_size);
-            // printf("mul t%d,t%d,t%d\n", r1->vn, r1->vn, r0->vn);
+            // printf("li s%d,%d\n", r0->vn, v->type_size);
+            // printf("mul s%d,s%d,s%d\n", r1->vn, r1->vn, r0->vn);
             // Reg *r2 = gen_expr(node->body);
-            // printf("add t%d,t%d,t%d\n", r2->vn, r1->vn, r2->vn);
-            // printf("lw t%d,0(t%d)\n", r0->vn, r2->vn);
+            // printf("add s%d,s%d,s%d\n", r2->vn, r1->vn, r2->vn);
+            // printf("lw s%d,0(s%d)\n", r0->vn, r2->vn);
             // kill_reg(r1);
             // kill_reg(r2);
             // return r0;
@@ -311,7 +311,7 @@ static Reg *gen_binop(Node *node) {
             BB *true_ = new_bb();
             BB *false_ = new_bb();
             BB *last = new_bb();
-            printf("beq t%d,t%d,.L%d\n", r1->vn, r2->vn, true_->label);
+            printf("beq s%d,s%d,.L%d\n", r1->vn, r2->vn, true_->label);
             kill_reg(r1);
             kill_reg(r2);
 
@@ -320,12 +320,12 @@ static Reg *gen_binop(Node *node) {
 
             currentBB = true_;
             printf(".L%d:\n", currentBB->label);
-            printf("li t%d,1\n", r0->vn);
+            printf("li s%d,1\n", r0->vn);
             jmp(last);
 
             currentBB = false_;
             printf(".L%d:\n", currentBB->label);
-            printf("li t%d,0\n", r0->vn);
+            printf("li s%d,0\n", r0->vn);
             jmp(last);
 
             currentBB = last;
@@ -342,7 +342,7 @@ static Reg *gen_binop(Node *node) {
             BB *true_ = new_bb();
             BB *false_ = new_bb();
             BB *last = new_bb();
-            printf("bne t%d,t%d,.L%d\n", r1->vn, r2->vn, true_->label);
+            printf("bne s%d,s%d,.L%d\n", r1->vn, r2->vn, true_->label);
             kill_reg(r1);
             kill_reg(r2);
 
@@ -350,12 +350,12 @@ static Reg *gen_binop(Node *node) {
 
             currentBB = true_;
             printf(".L%d:\n", currentBB->label);
-            printf("li t%d,1\n", r0->vn);
+            printf("li s%d,1\n", r0->vn);
             jmp(last);
 
             currentBB = false_;
             printf(".L%d:\n", currentBB->label);
-            printf("li t%d,0\n", r0->vn);
+            printf("li s%d,0\n", r0->vn);
             jmp(last);
 
             currentBB = last;
@@ -372,7 +372,7 @@ static Reg *gen_binop(Node *node) {
             BB *true_ = new_bb();
             BB *false_ = new_bb();
             BB *last = new_bb();
-            printf("blt t%d,t%d,.L%d\n", r1->vn, r2->vn, true_->label);
+            printf("blt s%d,s%d,.L%d\n", r1->vn, r2->vn, true_->label);
             kill_reg(r1);
             kill_reg(r2);
 
@@ -380,12 +380,12 @@ static Reg *gen_binop(Node *node) {
 
             currentBB = true_;
             printf(".L%d:\n", currentBB->label);
-            printf("li t%d,1\n", r0->vn);
+            printf("li s%d,1\n", r0->vn);
             jmp(last);
 
             currentBB = false_;
             printf(".L%d:\n", currentBB->label);
-            printf("li t%d,0\n", r0->vn);
+            printf("li s%d,0\n", r0->vn);
             jmp(last);
 
             currentBB = last;
@@ -402,7 +402,7 @@ static Reg *gen_binop(Node *node) {
             BB *true_ = new_bb();
             BB *false_ = new_bb();
             BB *last = new_bb();
-            printf("bgt t%d,t%d,.L%d\n", r1->vn, r2->vn, true_->label);
+            printf("bgt s%d,s%d,.L%d\n", r1->vn, r2->vn, true_->label);
             kill_reg(r1);
             kill_reg(r2);
 
@@ -410,12 +410,12 @@ static Reg *gen_binop(Node *node) {
 
             currentBB = true_;
             printf(".L%d:\n", currentBB->label);
-            printf("li t%d,1\n", r0->vn);
+            printf("li s%d,1\n", r0->vn);
             jmp(last);
 
             currentBB = false_;
             printf(".L%d:\n", currentBB->label);
-            printf("li t%d,0\n", r0->vn);
+            printf("li s%d,0\n", r0->vn);
             jmp(last);
 
             currentBB = last;
@@ -432,7 +432,7 @@ static Reg *gen_binop(Node *node) {
             BB *true_ = new_bb();
             BB *false_ = new_bb();
             BB *last = new_bb();
-            printf("ble t%d,t%d,.L%d\n", r1->vn, r2->vn, true_->label);
+            printf("ble s%d,s%d,.L%d\n", r1->vn, r2->vn, true_->label);
             kill_reg(r1);
             kill_reg(r2);
 
@@ -440,12 +440,12 @@ static Reg *gen_binop(Node *node) {
 
             currentBB = true_;
             printf(".L%d:\n", currentBB->label);
-            printf("li t%d,1\n", r0->vn);
+            printf("li s%d,1\n", r0->vn);
             jmp(last);
 
             currentBB = false_;
             printf(".L%d:\n", currentBB->label);
-            printf("li t%d,0\n", r0->vn);
+            printf("li s%d,0\n", r0->vn);
             jmp(last);
 
             currentBB = last;
@@ -462,7 +462,7 @@ static Reg *gen_binop(Node *node) {
             BB *true_ = new_bb();
             BB *false_ = new_bb();
             BB *last = new_bb();
-            printf("bge t%d,t%d,.L%d\n", r1->vn, r2->vn, true_->label);
+            printf("bge s%d,s%d,.L%d\n", r1->vn, r2->vn, true_->label);
             kill_reg(r1);
             kill_reg(r2);
 
@@ -470,12 +470,12 @@ static Reg *gen_binop(Node *node) {
 
             currentBB = true_;
             printf(".L%d:\n", currentBB->label);
-            printf("li t%d,1\n", r0->vn);
+            printf("li s%d,1\n", r0->vn);
             jmp(last);
 
             currentBB = false_;
             printf(".L%d:\n", currentBB->label);
-            printf("li t%d,0\n", r0->vn);
+            printf("li s%d,0\n", r0->vn);
             jmp(last);
 
             currentBB = last;
@@ -489,19 +489,19 @@ static Reg *gen_binop(Node *node) {
             Reg *r1 = gen_expr(node->lhs);
             BB *bb1 = new_bb();
             BB *last = new_bb();
-            printf("beqz t%d,.L%d\n", r1->vn, bb1->label);
+            printf("beqz s%d,.L%d\n", r1->vn, bb1->label);
             kill_reg(r1);
 
             Reg *r2 = gen_expr(node->rhs);
-            printf("beqz t%d,.L%d\n", r1->vn, bb1->label);
+            printf("beqz s%d,.L%d\n", r1->vn, bb1->label);
             kill_reg(r2);
 
-            printf("li t%d,1\n",r0->vn);
+            printf("li s%d,1\n",r0->vn);
             jmp(last);
 
             currentBB = bb1;
             printf(".L%d:\n", currentBB->label);
-            printf("li t%d,0\n",r0->vn);
+            printf("li s%d,0\n",r0->vn);
             currentBB = last;
             printf(".L%d:\n", currentBB->label);
             nop();
@@ -512,19 +512,19 @@ static Reg *gen_binop(Node *node) {
             Reg *r1 = gen_expr(node->lhs);
             BB *bb1 = new_bb();
             BB *last = new_bb();
-            printf("bnez t%d,.L%d\n", r1->vn, bb1->label);
+            printf("bnez s%d,.L%d\n", r1->vn, bb1->label);
             kill_reg(r1);
 
             Reg *r2 = gen_expr(node->rhs);
-            printf("bnez t%d,.L%d\n", r1->vn, bb1->label);
+            printf("bnez s%d,.L%d\n", r1->vn, bb1->label);
             kill_reg(r2);
 
-            printf("li t%d,0\n",r0->vn);
+            printf("li s%d,0\n",r0->vn);
             jmp(last);
 
             currentBB = bb1;
             printf(".L%d:\n", currentBB->label);
-            printf("li t%d,1\n",r0->vn);
+            printf("li s%d,1\n",r0->vn);
             currentBB = last;
             printf(".L%d:\n", currentBB->label);
             nop();
@@ -548,7 +548,7 @@ static Reg *gen_binop(Node *node) {
             Reg *r1 = gen_lval(node->lhs);
             Reg *r0 = gen_expr(node->rhs);
             char *access_unit = get_access_unit(node->type->align);
-            printf("s%s t%d,0(t%d)\n", access_unit, r0->vn, r1->vn);
+            printf("s%s s%d,0(s%d)\n", access_unit, r0->vn, r1->vn);
             kill_reg(r1);
             return r0;
 
@@ -557,9 +557,9 @@ static Reg *gen_binop(Node *node) {
             // Var *temp_var = lookup(currentScope, node->lhs->id->value);
             // if (temp_var->is_gval) {
             //     // 先将全局变量的地址加载到一个寄存器中保存
-            //     printf("la t%d,%s\n", r0->vn, temp_var->name);
+            //     printf("la s%d,%s\n", r0->vn, temp_var->name);
             //     // 将计算结果保存到该地址
-            //     printf("sw t%d,0(t%d)\n", r1->vn, r0->vn);
+            //     printf("sw s%d,0(s%d)\n", r1->vn, r0->vn);
             //     kill_reg(r0);
             //     return r1;
             // }
@@ -567,8 +567,8 @@ static Reg *gen_binop(Node *node) {
             //     offset += 4;
             //     temp_var->offset = offset;
             // }
-            // printf("mv t%d,t%d\n", r0->vn, r1->vn);
-            // printf("sw t%d,-%d(s0)\n", r0->vn, temp_var->offset);
+            // printf("mv s%d,s%d\n", r0->vn, r1->vn);
+            // printf("sw s%d,-%d(s0)\n", r0->vn, temp_var->offset);
 
             // kill_reg(r1);
             // return r0;
@@ -600,14 +600,14 @@ static Reg *gen_expr(Node *node) {
             currentBB = bb1;
             printf(".L%d:\n", currentBB->label);
             Reg *r1 = gen_expr(node->then);
-            printf("mv t%d,t%d\n", r0->vn, r1->vn);
+            printf("mv s%d,s%d\n", r0->vn, r1->vn);
             kill_reg(r1);
             jmp(last);
 
             currentBB = bb2;
             printf(".L%d:\n", currentBB->label);
             Reg *r2 = gen_expr(node->els);
-            printf("mv t%d,t%d\n", r0->vn, r2->vn);
+            printf("mv s%d,s%d\n", r0->vn, r2->vn);
             kill_reg(r2);
             jmp(last);
 
@@ -618,12 +618,12 @@ static Reg *gen_expr(Node *node) {
         }
         case ND_NUM: {
             Reg *r0 = new_reg();
-            printf("li t%d,%s\n", r0->vn, node->token->value);
+            printf("li s%d,%s\n", r0->vn, node->token->value);
             return r0;
         }
         case ND_CHAR: {
             Reg *r0 = new_reg();
-            printf("li t%d,%d\n", r0->vn, (int)node->token->value[0]);
+            printf("li s%d,%d\n", r0->vn, (int)node->token->value[0]);
             return r0;
         }
         case ND_STR: {
@@ -633,7 +633,7 @@ static Reg *gen_expr(Node *node) {
             printf(".LC%d:\n", clabel);
             printf("    .string\t%s\n", node->token->value);
             printf(".section    .text\n");
-            printf("lla t%d,.LC%d\n", r0->vn, clabel);
+            printf("lla s%d,.LC%d\n", r0->vn, clabel);
             return r0;
             break;
         }
@@ -646,9 +646,9 @@ static Reg *gen_expr(Node *node) {
                 Reg *r0 = new_reg();
                 Reg *r1 = new_reg();
                 // 加载全局变量地址
-                printf("la t%d,%s\n", r0->vn, var->name);
+                printf("la s%d,%s\n", r0->vn, var->name);
                 // 通过地址加载全局变量的值
-                printf("l%s t%d,0(t%d)\n", get_access_unit(var->type->align), r1->vn, r0->vn);
+                printf("l%s s%d,0(s%d)\n", get_access_unit(var->type->align), r1->vn, r0->vn);
                 kill_reg(r0);
                 return r1;
             }
@@ -657,33 +657,33 @@ static Reg *gen_expr(Node *node) {
                 Reg *r0 = new_reg();
                 if (!var->is_gval) {
                     if (var->is_param) {
-                        // printf("addi t%d,s0,%d\n", r0->vn, var->offset);
-                        // printf("ld t%d,0(t%d)\n", r0->vn, r0->vn);
-                        printf("ld t%d,%d(s0)\n", r0->vn, var->offset);
+                        // printf("addi s%d,s0,%d\n", r0->vn, var->offset);
+                        // printf("ld s%d,0(s%d)\n", r0->vn, r0->vn);
+                        printf("ld s%d,%d(s0)\n", r0->vn, var->offset);
                     }
                     else {
-                        // printf("ld t%d,%d(s0)\n", r0->vn, var->offset);
-                        printf("addi t%d,s0,%d\n", r0->vn, var->offset);
+                        // printf("ld s%d,%d(s0)\n", r0->vn, var->offset);
+                        printf("addi s%d,s0,%d\n", r0->vn, var->offset);
                     }
                 }
                 else {
-                    printf("la t%d,%s\n", r0->vn, var->name);
+                    printf("la s%d,%s\n", r0->vn, var->name);
                 }
                 return r0;
             }
             else if (var->type->kind == TY_POINTER_TO) {
                 Reg *r0 = new_reg();
-                printf("ld t%d,%d(s0)\n", r0->vn, var->offset);
+                printf("ld s%d,%d(s0)\n", r0->vn, var->offset);
                 return r0;
             }
             else if (var->type->kind == TY_FUNC) {
                 Reg *r0 = new_reg();
-                printf("la t%d,%s\n", r0->vn, var->type->name);
+                printf("la s%d,%s\n", r0->vn, var->type->name);
                 return r0;
             }
             else {
                 Reg *r0 = new_reg();
-                printf("l%s t%d,%d(s0)\n", get_access_unit(var->type->align), r0->vn, var->offset);
+                printf("l%s s%d,%d(s0)\n", get_access_unit(var->type->align), r0->vn, var->offset);
                 return r0;
             }
         }
@@ -704,13 +704,13 @@ static Reg *gen_expr(Node *node) {
             }
             // 将实参依次带入参数寄存器
             for (int i = 0;i < node->args->len;i++) {
-                printf("mv a%d,t%d\n", i, args[i]->vn);
+                printf("mv a%d,s%d\n", i, args[i]->vn);
             }
 
             if (callee->node_type == ND_UNARY_EXPR
                 || callee->node_type == ND_CALLEXPR
             ) {
-                printf("jalr t%d\n", bak->vn);
+                printf("jalr s%d\n", bak->vn);
                 kill_reg(bak);
             }
 
@@ -730,7 +730,7 @@ static Reg *gen_expr(Node *node) {
 
             // 保存返回值
             Reg *r0 = new_reg();
-            printf("mv t%d,a0\n", r0->vn);
+            printf("mv s%d,a0\n", r0->vn);
 
             // 函数调用结束，释放寄存器
             for (int i = 0;i < node->args->len;i++) {
@@ -753,7 +753,7 @@ char *to_str(int op) {
 }
 
 static void emit(int op, Reg *r0, Reg *r1, Reg *r2) {
-    printf("%s t%d,t%d,t%d\n", to_str(op), r0->vn, r1->vn, r2->vn);
+    printf("%s s%d,s%d,s%d\n", to_str(op), r0->vn, r1->vn, r2->vn);
     IR *ir = new_ir();
     ir->op = op;
     ir->r0 = r0;
@@ -805,17 +805,17 @@ static Reg *gen_lval(Node *node) {
             Reg *r0 = new_reg();
             // 全局变量,直接从标签加载地址
             if (var->is_gval) {
-                printf("la t%d,%s\n", r0->vn, var->name);
+                printf("la s%d,%s\n", r0->vn, var->name);
             }
             else {
                 // 局部变量,如果是指针且函数参数(说明变量不在此声明,var->offset为间接地址)
                 // 此时真正的地址在var->offset(s0)内
                 if (var->type->kind == TY_POINTER_TO && var->is_param) {
-                    printf("ld t%d,%d(s0)\n", r0->vn, var->offset);
+                    printf("ld s%d,%d(s0)\n", r0->vn, var->offset);
                 }
                 // 局部变量,且声明在此函数内,var->offset为直接地址
                 else {
-                    printf("addi t%d,s0,%d\n", r0->vn, var->offset);
+                    printf("addi s%d,s0,%d\n", r0->vn, var->offset);
                 }
             }
             return r0;
@@ -836,32 +836,32 @@ static Reg *gen_lval(Node *node) {
                     // 根据数组下标计算数组元素地址
                     // addr(array[i]) = arr + i * arr->type->size ? arr->type->align 待确认
                     Reg *r2 = new_reg();
-                    printf("li t%d,%d\n", r2->vn, node->type->size);
+                    printf("li s%d,%d\n", r2->vn, node->type->size);
                     Reg *r3 = new_reg();
-                    printf("mul t%d,t%d,t%d\n", r3->vn, r2->vn, r1->vn);
+                    printf("mul s%d,s%d,s%d\n", r3->vn, r2->vn, r1->vn);
                     kill_reg(r2);
                     kill_reg(r1);
 
                     // Reg *r0 = gen_expr(node->body);
                     Reg *r0 = gen_lval(node->body);
-                    printf("add t%d,t%d,t%d\n", r0->vn, r0->vn, r3->vn);
+                    printf("add s%d,s%d,s%d\n", r0->vn, r0->vn, r3->vn);
                     kill_reg(r3);
                     return r0;
 
                     // // 加载数组首地址
                     // Reg *r0 = new_reg();
                     // if (var->is_gval) {
-                    //     printf("la t%d,%s\n", r0->vn, var->name);
+                    //     printf("la s%d,%s\n", r0->vn, var->name);
                     // }
                     // else if (var->is_param) {
-                    //     // printf("addi t%d,s0,%d\n", r0->vn, var->offset);
-                    //     // printf("ld t%d,0(t%d)\n", r0->vn, r0->vn);
-                    //     printf("ld t%d,%d(s0)\n", r0->vn, var->offset);
+                    //     // printf("addi s%d,s0,%d\n", r0->vn, var->offset);
+                    //     // printf("ld s%d,0(s%d)\n", r0->vn, r0->vn);
+                    //     printf("ld s%d,%d(s0)\n", r0->vn, var->offset);
                     // }
                     // else {
-                    //     printf("addi t%d,s0,%d\n", r0->vn, var->offset);
+                    //     printf("addi s%d,s0,%d\n", r0->vn, var->offset);
                     // }
-                    // printf("add t%d,t%d,t%d\n", r0->vn, r0->vn, r1->vn);
+                    // printf("add s%d,s%d,s%d\n", r0->vn, r0->vn, r1->vn);
                 }
             }
         }
@@ -1064,7 +1064,7 @@ static void gen_stmt(Node *node) {
 
                 if (case_->test == NULL) continue;
                 Reg *r1 = gen_expr(case_->test);
-                printf("beq t%d,t%d,.L%d\n", r0->vn, r1->vn, caseBB->label);
+                printf("beq s%d,s%d,.L%d\n", r0->vn, r1->vn, caseBB->label);
                 kill_reg(r1);
             }
             kill_reg(r0);
@@ -1122,7 +1122,7 @@ static void gen_stmt(Node *node) {
             // 如果return语句不含返回值，则直接return,否则将计算返回值并将返回值移动至返回值寄存器
             if (node->body != NULL) {
                 Reg *r0 = gen_expr(node->body);
-                printf("mv a0,t%d\n",r0->vn);
+                printf("mv a0,s%d\n",r0->vn);
                 kill_reg(r0);
             }
             jmp(returnBB);
@@ -1136,11 +1136,11 @@ static void gen_param(Var *var, int i) {
     // var->offset = offset;
 
     Reg *r0 = new_reg();
-    printf("mv t%d,a%d\n", r0->vn, i);
+    printf("mv s%d,a%d\n", r0->vn, i);
     if (var->type->kind == TY_POINTER_TO || var->type->kind == TY_ARRAY_OF) {
-        printf("sd t%d,%d(s0)\n", r0->vn, var->offset);
+        printf("sd s%d,%d(s0)\n", r0->vn, var->offset);
     }
-    else printf("s%s t%d,%d(s0)\n", get_access_unit(var->type->size), r0->vn, var->offset);
+    else printf("s%s s%d,%d(s0)\n", get_access_unit(var->type->size), r0->vn, var->offset);
     kill_reg(r0);
 }
 
@@ -1171,7 +1171,7 @@ void emit_code(Function *fn) {
     // 函数代码生成前计算函数栈需要多少空间
     int stack_size = compute_max_size(currentScope);
 
-    stack_size += 72;
+    stack_size += 104;
 
     if (stack_size % 16 != 0) stack_size = ((stack_size / 16) + 1) * 16;
 
@@ -1185,13 +1185,17 @@ void emit_code(Function *fn) {
     printf("sd      s0,%d(sp)\n", stack_size - 16);
     printf("addi    s0,sp,%d\n", stack_size);
 
-    printf("sd      t0,-%d(s0)\n", 16 + 8 * 1);
-    printf("sd      t1,-%d(s0)\n", 16 + 8 * 2);
-    printf("sd      t2,-%d(s0)\n", 16 + 8 * 3);
-    printf("sd      t3,-%d(s0)\n", 16 + 8 * 4);
-    printf("sd      t4,-%d(s0)\n", 16 + 8 * 5);
-    printf("sd      t5,-%d(s0)\n", 16 + 8 * 6);
-    printf("sd      t6,-%d(s0)\n", 16 + 8 * 7);
+    printf("sd      s1,-%d(s0)\n", 16 + 8 * 1);
+    printf("sd      s2,-%d(s0)\n", 16 + 8 * 2);
+    printf("sd      s3,-%d(s0)\n", 16 + 8 * 3);
+    printf("sd      s4,-%d(s0)\n", 16 + 8 * 4);
+    printf("sd      s5,-%d(s0)\n", 16 + 8 * 5);
+    printf("sd      s6,-%d(s0)\n", 16 + 8 * 6);
+    printf("sd      s7,-%d(s0)\n", 16 + 8 * 7);
+    printf("sd      s8,-%d(s0)\n", 16 + 8 * 8);
+    printf("sd      s9,-%d(s0)\n", 16 + 8 * 9);
+    printf("sd      s10,-%d(s0)\n", 16 + 8 * 10);
+    printf("sd      s11,-%d(s0)\n", 16 + 8 * 11);
 
     // offset -= 56;
 
@@ -1215,13 +1219,17 @@ void emit_code(Function *fn) {
     currentBB = returnBB;
     printf(".L%d:\n", currentBB->label);
 
-    printf("ld      t0,-%d(s0)\n", 16 + 8 * 1);
-    printf("ld      t1,-%d(s0)\n", 16 + 8 * 2);
-    printf("ld      t2,-%d(s0)\n", 16 + 8 * 3);
-    printf("ld      t3,-%d(s0)\n", 16 + 8 * 4);
-    printf("ld      t4,-%d(s0)\n", 16 + 8 * 5);
-    printf("ld      t5,-%d(s0)\n", 16 + 8 * 6);
-    printf("ld      t6,-%d(s0)\n", 16 + 8 * 7);
+    printf("ld      s1,-%d(s0)\n", 16 + 8 * 1);
+    printf("ld      s2,-%d(s0)\n", 16 + 8 * 2);
+    printf("ld      s3,-%d(s0)\n", 16 + 8 * 3);
+    printf("ld      s4,-%d(s0)\n", 16 + 8 * 4);
+    printf("ld      s5,-%d(s0)\n", 16 + 8 * 5);
+    printf("ld      s6,-%d(s0)\n", 16 + 8 * 6);
+    printf("ld      s7,-%d(s0)\n", 16 + 8 * 7);
+    printf("ld      s8,-%d(s0)\n", 16 + 8 * 8);
+    printf("ld      s9,-%d(s0)\n", 16 + 8 * 9);
+    printf("ld      s10,-%d(s0)\n", 16 + 8 * 10);
+    printf("ld      s11,-%d(s0)\n", 16 + 8 * 11);
 
     printf("ld      ra,%d(sp)\n", stack_size - 8);
     printf("ld      s0,%d(sp)\n", stack_size - 16);
@@ -1231,7 +1239,7 @@ void emit_code(Function *fn) {
 
 static void init_registers() {
     registers = new_vec();
-    for (int i = 0;i <= 6;i++) {
+    for (int i = 1;i <= 11;i++) {
         vec_push(registers, new_real_reg());
     }
 }
