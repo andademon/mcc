@@ -1,4 +1,4 @@
-/* #include <stdio.h> */
+
 
 void swap(int *a, int *b) {
     int t = *a;
@@ -8,8 +8,7 @@ void swap(int *a, int *b) {
 
 int partition(int arr[], int low, int high) {
     int pivot = arr[high];
-    int i = low - 1;
-    int j;
+    int i = low - 1, j;
     for (j = low;j < high;j++) {
         if (arr[j] < pivot) {
             i++;
@@ -39,8 +38,10 @@ void printArray(int arr[], int size) {
 int main() {
     int n = 6;
     int arr[6] = {10, 7, 8, 9, 1, 5};
+    printf("before quick sort\n");
     printArray(arr, n);
     quickSort(arr, 0, n - 1);
+    printf("after quick sort\n");
     printArray(arr, n);
     return 0;
 }
