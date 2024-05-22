@@ -698,15 +698,16 @@ void printSymbolTable(SymbolTable *table, int tabs) {
     printTab(tabs);
     printf("scopeLevel: %d\n", table->scopeLevel);
     for (int i = 0;i < table->entries->keys->len;i++) {
-        printTab(tabs);
         Var *var = table->entries->vals->data[i];
         if (!var) continue;
+        printTab(tabs);
         printf("%s\n", var->name);
         {
             printType(var->type, tabs + 1);
-            printTab(tabs + 1);
-            if (var->type->kind != TY_FUNC)
+            if (var->type->kind != TY_FUNC) {
+                printTab(tabs + 1);
                 printf("offset: %d\n", var->offset);
+            }
             // printFullType(var->derived_type, tabs + 1);
             // printTab(tabs + 1);
             // printFullType(var->derived_type);

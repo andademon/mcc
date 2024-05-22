@@ -46,10 +46,17 @@ int main(int argc, char *argv[])
                 printProgram(prog);
                 continue;
             }
+            else if (!strcmp(argv[i], "-symboltable")) {
+                prog = tree_to_prog(prog);
+                SymbolTable *table = sema(prog);
+                printSymbolTable(table, 1);
+                continue;
+            }
             else if (!strcmp(argv[i], "-code")) {
                 prog = tree_to_prog(prog);
                 SymbolTable *table = sema(prog);
                 codegen(prog, table);
+                continue;
             }
             else {
                 printf("unknown command line arg: %s", argv[i]);
