@@ -432,8 +432,6 @@ SymbolTable *sema(Program *prog) {
 
     check_type(prog, table);
 
-    // printf("max_size: %d\n", compute_max_size(table));
-
     puts("");
 
     return table;

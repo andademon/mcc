@@ -1,50 +1,11 @@
 #include "include/mcc.h"
 
 static Token *head;
-
-void test() {
-    // char *str = readFile("test/demo.c");
-    // char *str = readFile("test/hello.c");
-    // char *str = readFile("test/fibonacci.c");
-    // char *str = readFile("test/gval.c");
-    // char *str = readFile("test/gval-array.c");
-    // char *str = readFile("test/while.c");
-    // char *str = readFile("test/do-while.c");
-    // char *str = readFile("test/for.c");
-    // char *str = readFile("test/if-else.c");
-    // char *str = readFile("test/switch-case.c");
-    // char *str = readFile("test/array.c");
-    // char *str = readFile("test/pointer.c");
-
-    // char *str = readFile("test/quicksort.c");
-
-    // char *str = readFile("test/complex.c");
-
-    char *str = readFile("test/MultidimensionalArray.c");
-
-    printf("---Source File---\n");
-    printf("%s\n", str);
-
-    printf("---Lexer---\n"); 
-    head = Lexer(str);
-    printTokenList(head);
-
-    printf("---Parser---\n");
-    Program *prog = parse(head);
-    printProgram(prog);
-    
-    prog = tree_to_prog(prog);
-    // printf("---Semantic---\n");
-    SymbolTable *table = sema(prog);
-
-    // printf("---Codegen---\n");
-    codegen(prog, table);
-    exit(0);
-}
+void test();
 
 int main(int argc, char *argv[])
 {
-    test();
+    // test();
     if (argc < 2) {
         printf("At least two command line parameters are required. Example: ./main <filename>\n");
         exit(1);
@@ -97,4 +58,45 @@ int main(int argc, char *argv[])
         }
     }
     return 0;
+}
+
+void test() {
+    // char *str = readFile("test/demo.c");
+    // char *str = readFile("test/hello.c");
+    // char *str = readFile("test/fibonacci.c");
+    // char *str = readFile("test/gval.c");
+    // char *str = readFile("test/gval-array.c");
+    // char *str = readFile("test/while.c");
+    // char *str = readFile("test/do-while.c");
+    // char *str = readFile("test/for.c");
+    // char *str = readFile("test/if-else.c");
+    char *str = readFile("test/switch-case.c");
+    // char *str = readFile("test/array.c");
+    // char *str = readFile("test/pointer.c");
+
+    // char *str = readFile("test/quicksort.c");
+
+    // char *str = readFile("test/complex.c");
+
+    // char *str = readFile("test/MultidimensionalArray.c");
+    // char *str = readFile("test/goto.c");
+
+    // printf("---Source File---\n");
+    // printf("%s\n", str);
+
+    // printf("---Lexer---\n"); 
+    head = Lexer(str);
+    // printTokenList(head);
+
+    // printf("---Parser---\n");
+    Program *prog = parse(head);
+    // printProgram(prog);
+    
+    prog = tree_to_prog(prog);
+    // printf("---Semantic---\n");
+    SymbolTable *table = sema(prog);
+
+    // printf("---Codegen---\n");
+    codegen(prog, table);
+    exit(0);
 }

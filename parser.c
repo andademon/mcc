@@ -271,7 +271,7 @@ static void expect(char *str) {
         current_token = current_token->next;
         return;
     }
-    printf("expect %s, current token: %d\t%s\n", str, current_token->id, current_token->value);
+    printf("syntax error: expect %s, current token: %d\t%s\n", str, current_token->id, current_token->value);
     exit(0);
 }
 
@@ -294,7 +294,7 @@ static void expect_type(int type) {
         current_token = current_token->next;
         return;
     }
-    printf("expect %d, current token: %d\t%s\n", type, current_token->id, current_token->value);
+    printf("syntax error: expect %d, current token: %d\t%s\n", type, current_token->id, current_token->value);
     exit(0);
 }
 
@@ -1399,8 +1399,7 @@ static Node *constant() {
         node->token = token;
         return node;
     }
-    printf("parse error!\n");
-    exit(1);
+    return NULL;
 }
 
 /**
@@ -1445,20 +1444,3 @@ static Vector *argument_list() {
     }
     return args;
 }
-
-typedef struct {
-    int op_type;
-    int precedence; // 优先级
-    int associativity; // 结合性 LEFT | RIGHT
-} Operator;
-
-// static Operator init_operator(int op_type, int precedence, int associativity) {
-// }
-
-// static Node *parse_expr(Node *node) {
-//     return parse_expr_1(node->lhs, 0);
-// }
-
-// static Node *parse_expr_1(Node *node, int min_prec) {
-
-// }

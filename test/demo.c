@@ -4,7 +4,7 @@ int add(int a, int b) {
 }
 
 int main() {
-    int a = 9,b = 3;
+    int a = 9, b = 3;
     printf("%d\n", add(a,b));
     return 0;
 }
